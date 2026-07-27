@@ -550,3 +550,128 @@ window.addWH = function(data = {}) {
     <div class="field"><label>Description</label><input class="wh-desc" value="${esc(data.desc||"")}" placeholder="Key responsibilities..."/></div>`;
   document.getElementById("wh-list").appendChild(div);
 };
+
+// ═══════════════════════════════════════════════════════
+//  BULK EMAIL
+// ═══════════════════════════════════════════════════════
+
+let bulkCurrentStatus = "Selected";
+
+window.openBulkEmail = function(status = "Selected") {
+  bulkCurrentStatus = status;
+
+  // populate tab counts
+  ["Selected", "On Hold", "Rejected"].forEach(s => {
+    const cnt = allCandidates.filter(c => c.status === s && c.email).length;
+    document.getElementById("be-cnt-" + s).textContent = cnt;
+  });
+
+  // activate correct tab
+  document.querySelectorAll(".be-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("be-tab-" + status).classList.add("active");
+
+  // render recipients
+  renderBulkRecipients(status);
+
+  // clear compose fields
+  document.getElementById("be-subject").value = "";
+  document.getElementById("be-body").value    = "";
+
+  document.getElementById("modal-bulk-email").classList.add("open");
+};
+
+function renderBulkRecipients(status) {
+  const candidates = allCandidates.filter(c => c.status === status && c.email);
+  const wrap  = document.getElementById("be-recipients");
+  const noEl  = document.getElementById("be-no-email");
+  const allCk = document.getElementById("be-check-all");
+
+  if (!candidates.length) {
+    wrap.innerHTML  = "";
+    noEl.style.display  = "block";
+    allCk.checked       = false;
+    allCk.disabled      = true;
+    return;
+  }
+
+  noEl.style.display  = "none";
+  allCk.disabled      = false;
+  allCk.checked       = true;
+
+  wrap.innerHTML = candidates.map(c => `
+    <label class="be-recipient-row">
+      <input type="checkbox" class="be-chk" value="${esc(c.email)}" checked/>
+      <div class="be-recipient-avatar">${esc((c.name || "?")[0].toUpperCase())}</div>
+      <div class="be-recipient-info">
+        <div class="be-recipient-name">${esc(c.name)}</div>
+        <div class="be-recipient-email">${esc(c.email)}</div>
+      </div>
+      <span class="be-recipient-dept">${esc(c.dept || "—")}</span>
+    </label>`).join("");
+
+  // keep "select all" checkbox in sync when individual boxes change
+  wrap.querySelectorAll(".be-chk").forEach(chk => {
+    chk.addEventListener("change", syncSelectAll);
+  });
+}
+
+function syncSelectAll() {
+  const all     = document.querySelectorAll(".be-chk");
+  const checked = document.querySelectorAll(".be-chk:checked");
+  const allCk   = document.getElementById("be-check-all");
+  allCk.checked       = checked.length === all.length;
+  allCk.indeterminate = checked.length > 0 && checked.length < all.length;
+}
+
+window.switchBulkTab = function(status) {
+  bulkCurrentStatus = status;
+  document.querySelectorAll(".be-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("be-tab-" + status).classList.add("active");
+  renderBulkRecipients(status);
+};
+
+window.bulkToggleAll = function(checked) {
+  document.querySelectorAll(".be-chk").forEach(chk => { chk.checked = checked; });
+};
+
+window.sendBulkEmail = function() {
+  const subject = document.getElementById("be-subject").value.trim();
+  const body    = document.getElementById("be-body").value.trim();
+  const emails  = [...document.querySelectorAll(".be-chk:checked")].map(c => c.value);
+
+  if (!emails.length) { toast("No recipients selected.", "err"); return; }
+  if (!subject)       { toast("Please enter a subject.", "err"); return; }
+  if (!body)          { toast("Please enter a message body.", "err"); return; }
+
+  // Build mailto: with BCC so each recipient doesn't see others
+  // mailto:?bcc=a,b,c&subject=...&body=...
+  const bcc      = emails.join(",");
+  const mailto   = `mailto:?bcc=${encodeURIComponent(bcc)}`
+    + `&subject=${encodeURIComponent(subject)}`
+    + `&body=${encodeURIComponent(body)}`;
+
+  // mailto URIs have a browser length limit (~2000 chars for subject+body)
+  // For large lists we chunk into batches of 25
+  const BATCH = 25;
+  if (emails.length <= BATCH) {
+    window.location.href = mailto;
+    toast(`Opening email client for ${emails.length} recipient${emails.length > 1 ? "s" : ""} ✉️`, "ok");
+  } else {
+    // Open in batches
+    const chunks = [];
+    for (let i = 0; i < emails.length; i += BATCH) {
+      chunks.push(emails.slice(i, i + BATCH));
+    }
+    chunks.forEach((chunk, idx) => {
+      setTimeout(() => {
+        const batchMailto = `mailto:?bcc=${encodeURIComponent(chunk.join(","))}`
+          + `&subject=${encodeURIComponent(subject)}`
+          + `&body=${encodeURIComponent(body)}`;
+        window.open(batchMailto, "_blank");
+      }, idx * 800);
+    });
+    toast(`Sending in ${chunks.length} batches (${emails.length} total recipients) ✉️`, "ok");
+  }
+
+  closeModal("modal-bulk-email");
+};

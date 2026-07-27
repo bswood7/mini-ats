@@ -151,6 +151,9 @@
         <div class="nav-item" id="nav-departments" onclick="showPage('departments')">
           <span class="nav-icon">🏢</span> Departments
         </div>
+        <div class="nav-item" onclick="openBulkEmail('Selected')">
+          <span class="nav-icon">📧</span> Bulk Email
+        </div>
       </nav>
 
       <!-- PAGES -->
@@ -444,6 +447,68 @@
         <button class="close-btn" onclick="closeModal('modal-view')">✕</button>
       </div>
       <div class="modal-body" id="view-body"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+       BULK EMAIL MODAL
+  ════════════════════════════════ -->
+  <div class="overlay" id="modal-bulk-email" onclick="overlayClose(event,'modal-bulk-email')">
+    <div class="modal modal-wide">
+      <div class="modal-hdr">
+        <h2>📧 Bulk Email</h2>
+        <button class="close-btn" onclick="closeModal('modal-bulk-email')">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- STATUS TABS -->
+        <div class="be-tabs">
+          <button class="be-tab active" id="be-tab-Selected"  onclick="switchBulkTab('Selected')">
+            ✅ Selected <span class="be-tab-badge" id="be-cnt-Selected">0</span>
+          </button>
+          <button class="be-tab" id="be-tab-On Hold"   onclick="switchBulkTab('On Hold')">
+            ⏸ On Hold <span class="be-tab-badge" id="be-cnt-On Hold">0</span>
+          </button>
+          <button class="be-tab" id="be-tab-Rejected"  onclick="switchBulkTab('Rejected')">
+            ❌ Rejected <span class="be-tab-badge" id="be-cnt-Rejected">0</span>
+          </button>
+        </div>
+
+        <!-- RECIPIENT LIST -->
+        <div class="be-recipients-wrap">
+          <div class="be-recipients-header">
+            <span class="be-recipients-label">Recipients</span>
+            <label class="be-select-all">
+              <input type="checkbox" id="be-check-all" onchange="bulkToggleAll(this.checked)"/> Select all
+            </label>
+          </div>
+          <div id="be-recipients" class="be-recipients"></div>
+          <div id="be-no-email" class="be-no-email" style="display:none">
+            ⚠️ No candidates with email addresses found for this status.
+          </div>
+        </div>
+
+        <!-- COMPOSE AREA -->
+        <div class="section-title" style="margin-top:18px">Compose Email</div>
+        <div class="field">
+          <label>Subject</label>
+          <input id="be-subject" placeholder="e.g. Regarding Your Application at Our Company"/>
+        </div>
+        <div class="field">
+          <label>Message Body</label>
+          <textarea id="be-body" style="min-height:160px" placeholder="Dear Candidate,&#10;&#10;We wanted to inform you...&#10;&#10;Regards,&#10;HR Team"></textarea>
+        </div>
+
+        <!-- PREVIEW NOTE -->
+        <div class="be-note">
+          💡 Clicking <strong>Send Emails</strong> will open your default email client with all selected recipients in the BCC field and the composed message pre-filled. Each candidate receives the same email.
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal('modal-bulk-email')">Cancel</button>
+          <button class="btn btn-primary" onclick="sendBulkEmail()">📤 Send Emails</button>
+        </div>
+      </div>
     </div>
   </div>
 
