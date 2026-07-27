@@ -22,7 +22,7 @@
 
       <h1 class="auth-left-headline">Hire smarter.<br/>Move faster.</h1>
       <p class="auth-left-sub">
-        The modern applicant tracking system built for growing teams — track candidates, manage pipelines, and close roles faster.
+        The modern applicant tracking system built for construction companies — track candidates, manage pipelines, and close roles faster.
       </p>
 
       <div class="auth-left-features">
@@ -30,6 +30,15 @@
         <div class="auth-feature"><div class="auth-feature-dot"></div>Real-time pipeline and status tracking</div>
         <div class="auth-feature"><div class="auth-feature-dot"></div>Detailed work history and interview notes</div>
         <div class="auth-feature"><div class="auth-feature-dot"></div>Secure, cloud-backed with Firebase</div>
+      </div>
+
+      <!-- Floating stats card on left panel -->
+      <div class="auth-stats-card">
+        <div class="auth-stat"><span class="auth-stat-num">500+</span><span class="auth-stat-lbl">Candidates</span></div>
+        <div class="auth-stat-div"></div>
+        <div class="auth-stat"><span class="auth-stat-num">17</span><span class="auth-stat-lbl">Departments</span></div>
+        <div class="auth-stat-div"></div>
+        <div class="auth-stat"><span class="auth-stat-num">100%</span><span class="auth-stat-lbl">Cloud Synced</span></div>
       </div>
     </div>
 
@@ -86,7 +95,7 @@
           </div>
           <div class="field">
             <label>Company Name</label>
-            <input id="su-company" placeholder="Acme Technologies Pvt. Ltd."/>
+            <input id="su-company" placeholder="Acme Construction Pvt. Ltd."/>
           </div>
           <button class="btn btn-primary w100" onclick="doSignup()">Create Free Account →</button>
         </div>
@@ -119,14 +128,29 @@
       <!-- SIDEBAR -->
       <nav class="sidebar">
         <div class="nav-group-label">Main</div>
-        <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">📊 Dashboard</div>
-        <div class="nav-item" id="nav-candidates" onclick="showPage('candidates')">👥 All Candidates</div>
+        <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">
+          <span class="nav-icon">📊</span> Dashboard
+        </div>
+        <div class="nav-item" id="nav-candidates" onclick="showPage('candidates')">
+          <span class="nav-icon">👥</span> All Candidates
+        </div>
         <div class="nav-group-label">Pipeline</div>
-        <div class="nav-item" onclick="showPage('candidates','Selected')">✅ Selected</div>
-        <div class="nav-item" onclick="showPage('candidates','Rejected')">❌ Rejected</div>
-        <div class="nav-item" onclick="showPage('candidates','On Hold')">⏸ On Hold</div>
+        <div class="nav-item" onclick="showPage('candidates','Selected')">
+          <span class="nav-icon">✅</span> Selected
+          <span class="nav-badge nav-badge-green" id="nb-sel">0</span>
+        </div>
+        <div class="nav-item" onclick="showPage('candidates','Rejected')">
+          <span class="nav-icon">❌</span> Rejected
+          <span class="nav-badge nav-badge-red" id="nb-rej">0</span>
+        </div>
+        <div class="nav-item" onclick="showPage('candidates','On Hold')">
+          <span class="nav-icon">⏸</span> On Hold
+          <span class="nav-badge nav-badge-yellow" id="nb-hold">0</span>
+        </div>
         <div class="nav-group-label">More</div>
-        <div class="nav-item" id="nav-departments" onclick="showPage('departments')">🏢 Departments</div>
+        <div class="nav-item" id="nav-departments" onclick="showPage('departments')">
+          <span class="nav-icon">🏢</span> Departments
+        </div>
       </nav>
 
       <!-- PAGES -->
@@ -137,56 +161,125 @@
 
           <!-- WELCOME BANNER -->
           <div class="welcome-banner">
-            <div class="welcome-banner-text">
-              <h2 id="dash-welcome">Welcome, Digvijay! 👋</h2>
-              <p>Here's an overview of your talent pipeline today.</p>
+            <div class="welcome-banner-left">
+              <div class="welcome-banner-icon">👷</div>
+              <div class="welcome-banner-text">
+                <h2 id="dash-welcome">Welcome, Digvijay! 👋</h2>
+                <p>Here's your talent pipeline overview for today.</p>
+              </div>
             </div>
-            <div class="welcome-banner-badge">
-              <span class="num" id="wb-total">0</span>
-              <span class="lbl">Total Candidates</span>
+            <div class="welcome-banner-right">
+              <div class="welcome-banner-badge">
+                <span class="num" id="wb-total">0</span>
+                <span class="lbl">Total Candidates</span>
+              </div>
+              <button class="btn btn-white btn-sm" onclick="openAddModal()">+ Add Candidate</button>
             </div>
           </div>
 
-          <div class="page-header">
-            <h1>Dashboard</h1>
-            <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Candidate</button>
-          </div>
-
+          <!-- STAT CARDS -->
           <div class="stats-grid">
-            <div class="stat-card blue"><div class="stat-label">Total</div><div class="stat-val" id="s-total">0</div></div>
-            <div class="stat-card green"><div class="stat-label">Selected</div><div class="stat-val" id="s-sel">0</div></div>
-            <div class="stat-card red"><div class="stat-label">Rejected</div><div class="stat-val" id="s-rej">0</div></div>
-            <div class="stat-card yellow"><div class="stat-label">On Hold</div><div class="stat-val" id="s-hold">0</div></div>
-            <div class="stat-card purple"><div class="stat-label">Departments</div><div class="stat-val" id="s-dept">0</div></div>
-          </div>
-
-          <div class="card" style="margin-bottom:20px">
-            <div class="card-head">📈 Pipeline Overview</div>
-            <div class="card-body">
-              <div class="pipe-labels">
-                <span class="green-t">✓ Selected</span>
-                <span class="red-t">✗ Rejected</span>
-                <span class="yellow-t">⏸ On Hold</span>
+            <div class="stat-card blue">
+              <div class="stat-icon-wrap blue-icon">👤</div>
+              <div class="stat-info">
+                <div class="stat-label">Total</div>
+                <div class="stat-val" id="s-total">0</div>
               </div>
-              <div class="pipe-bar">
-                <div id="pipe-sel" class="pipe-sel"></div>
-                <div id="pipe-rej" class="pipe-rej"></div>
-                <div id="pipe-hold" class="pipe-hold"></div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-icon-wrap green-icon">✅</div>
+              <div class="stat-info">
+                <div class="stat-label">Selected</div>
+                <div class="stat-val" id="s-sel">0</div>
               </div>
-              <div id="dept-bars" class="dept-bars"></div>
+            </div>
+            <div class="stat-card red">
+              <div class="stat-icon-wrap red-icon">❌</div>
+              <div class="stat-info">
+                <div class="stat-label">Rejected</div>
+                <div class="stat-val" id="s-rej">0</div>
+              </div>
+            </div>
+            <div class="stat-card yellow">
+              <div class="stat-icon-wrap yellow-icon">⏸</div>
+              <div class="stat-info">
+                <div class="stat-label">On Hold</div>
+                <div class="stat-val" id="s-hold">0</div>
+              </div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-icon-wrap purple-icon">🏢</div>
+              <div class="stat-info">
+                <div class="stat-label">Departments</div>
+                <div class="stat-val" id="s-dept">0</div>
+              </div>
             </div>
           </div>
 
-          <div class="card">
-            <div class="card-head">🕐 Recent Candidates</div>
-            <table class="tbl">
-              <thead>
-                <tr>
-                  <th>Name</th><th>Department</th><th>Position</th><th>Status</th><th>Date</th>
-                </tr>
-              </thead>
-              <tbody id="recent-tbody"></tbody>
-            </table>
+          <!-- QUICK ACTIONS -->
+          <div class="quick-actions">
+            <div class="qa-title">Quick Actions</div>
+            <div class="qa-grid">
+              <button class="qa-btn" onclick="openAddModal()">
+                <span class="qa-icon">➕</span>
+                <span>Add Candidate</span>
+              </button>
+              <button class="qa-btn" onclick="showPage('candidates','Selected')">
+                <span class="qa-icon">✅</span>
+                <span>View Selected</span>
+              </button>
+              <button class="qa-btn" onclick="showPage('candidates','On Hold')">
+                <span class="qa-icon">⏸</span>
+                <span>Review On Hold</span>
+              </button>
+              <button class="qa-btn" onclick="showPage('departments')">
+                <span class="qa-icon">🏢</span>
+                <span>Departments</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- PIPELINE + RECENT — two column layout -->
+          <div class="dash-grid">
+
+            <!-- PIPELINE CARD -->
+            <div class="card">
+              <div class="card-head">📈 Pipeline Overview</div>
+              <div class="card-body">
+                <div class="pipe-legend">
+                  <span class="pipe-dot green-dot"></span><span class="green-t">Selected</span>
+                  <span class="pipe-dot red-dot"></span><span class="red-t">Rejected</span>
+                  <span class="pipe-dot yellow-dot"></span><span class="yellow-t">On Hold</span>
+                </div>
+                <div class="pipe-bar" style="margin-top:10px">
+                  <div id="pipe-sel" class="pipe-sel"></div>
+                  <div id="pipe-rej" class="pipe-rej"></div>
+                  <div id="pipe-hold" class="pipe-hold"></div>
+                </div>
+                <div class="pipe-pct-row">
+                  <span class="green-t" id="pct-sel">0%</span>
+                  <span class="red-t"   id="pct-rej">0%</span>
+                  <span class="yellow-t" id="pct-hold">0%</span>
+                </div>
+                <div id="dept-bars" class="dept-bars" style="margin-top:18px"></div>
+              </div>
+            </div>
+
+            <!-- RECENT CANDIDATES CARD -->
+            <div class="card">
+              <div class="card-head">🕐 Recent Candidates
+                <a class="card-head-link" onclick="showPage('candidates')">View all →</a>
+              </div>
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Name</th><th>Department</th><th>Status</th><th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-tbody"></tbody>
+              </table>
+            </div>
+
           </div>
         </section>
 
@@ -298,7 +391,7 @@
               <option>Other</option>
             </select>
           </div>
-          <div class="field"><label>Position</label><input id="f-pos" placeholder="Senior Developer"/></div>
+          <div class="field"><label>Position</label><input id="f-pos" placeholder="Senior Site Engineer"/></div>
         </div>
         <div class="field-row">
           <div class="field"><label>Experience (yrs)</label><input type="number" id="f-exp" min="0" placeholder="3"/></div>
@@ -306,7 +399,7 @@
         </div>
         <div class="field-row">
           <div class="field"><label>Expected CTC (LPA)</label><input id="f-ectc" placeholder="18"/></div>
-          <div class="field"><label>Skills</label><input id="f-skills" placeholder="React, Node.js, SQL"/></div>
+          <div class="field"><label>Skills</label><input id="f-skills" placeholder="AutoCAD, STAAD, MS Project"/></div>
         </div>
 
         <div class="section-title">Pipeline Status</div>

@@ -271,10 +271,20 @@ function renderDashboard() {
   document.getElementById("s-dept").textContent   = depts;
   document.getElementById("wb-total").textContent = total;
 
+  // sidebar badges
+  document.getElementById("nb-sel").textContent  = sel;
+  document.getElementById("nb-rej").textContent  = rej;
+  document.getElementById("nb-hold").textContent = hold;
+
   const pct = n => total ? (n / total * 100).toFixed(1) + "%" : "0%";
   document.getElementById("pipe-sel").style.width  = pct(sel);
   document.getElementById("pipe-rej").style.width  = pct(rej);
   document.getElementById("pipe-hold").style.width = pct(hold);
+
+  // percentage labels under the bar
+  document.getElementById("pct-sel").textContent  = pct(sel);
+  document.getElementById("pct-rej").textContent  = pct(rej);
+  document.getElementById("pct-hold").textContent = pct(hold);
 
   // dept bars
   const deptMap = {};
