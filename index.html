@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TalentFlow ATS — Applicant Tracking System</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ════════════════════════════════
+       AUTH SCREEN  (Split-panel)
+  ════════════════════════════════ -->
+  <div id="screen-auth" class="screen">
+
+    <!-- LEFT PANEL -->
+    <div class="auth-left">
+      <div class="auth-left-logo">
+        <div class="auth-left-logo-icon">🎯</div>
+        <div class="auth-left-logo-text">TalentFlow ATS</div>
+      </div>
+
+      <h1 class="auth-left-headline">Hire smarter.<br/>Move faster.</h1>
+      <p class="auth-left-sub">
+        The modern applicant tracking system built for growing teams — track candidates, manage pipelines, and close roles faster.
+      </p>
+
+      <div class="auth-left-features">
+        <div class="auth-feature"><div class="auth-feature-dot"></div>Manage unlimited candidates across departments</div>
+        <div class="auth-feature"><div class="auth-feature-dot"></div>Real-time pipeline and status tracking</div>
+        <div class="auth-feature"><div class="auth-feature-dot"></div>Detailed work history and interview notes</div>
+        <div class="auth-feature"><div class="auth-feature-dot"></div>Secure, cloud-backed with Firebase</div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL — FORMS -->
+    <div class="auth-right">
+      <div class="auth-form-box">
+
+        <div id="auth-form-login-header">
+          <div class="auth-form-title">Welcome back 👋</div>
+          <div class="auth-form-sub">Sign in to your TalentFlow account</div>
+        </div>
+        <div id="auth-form-signup-header" style="display:none">
+          <div class="auth-form-title">Create account 🚀</div>
+          <div class="auth-form-sub">Join TalentFlow and start hiring smarter</div>
+        </div>
+
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+          <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</button>
+        </div>
+
+        <div id="auth-error" class="error-box" style="display:none">
+          <span>⚠️</span><span id="auth-error-text"></span>
+        </div>
+
+        <!-- LOGIN -->
+        <div id="form-login">
+          <div class="field">
+            <label>Email Address</label>
+            <input type="email" id="login-email" placeholder="you@company.com"/>
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="login-pass" placeholder="Enter your password"/>
+          </div>
+          <button class="btn btn-primary w100" onclick="doLogin()">Sign In to Dashboard →</button>
+        </div>
+
+        <!-- SIGNUP -->
+        <div id="form-signup" style="display:none">
+          <div class="field-row">
+            <div class="field">
+              <label>Full Name</label>
+              <input id="su-name" placeholder="Digvijay Singh"/>
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="su-email" placeholder="you@company.com"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="su-pass" placeholder="Min 6 characters"/>
+          </div>
+          <div class="field">
+            <label>Company Name</label>
+            <input id="su-company" placeholder="Acme Technologies Pvt. Ltd."/>
+          </div>
+          <button class="btn btn-primary w100" onclick="doSignup()">Create Free Account →</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+       MAIN APP
+  ════════════════════════════════ -->
+  <div id="screen-app" class="screen" style="display:none; flex-direction:column; min-height:100vh">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-icon">🎯</div>
+        <div class="brand-text">Talent<span>Flow</span></div>
+      </div>
+      <div class="topbar-right">
+        <span class="welcome-msg" id="welcome-msg">Welcome, Digvijay 👋</span>
+        <span class="user-pill" id="user-pill">—</span>
+        <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logout</button>
+      </div>
+    </header>
+
+    <!-- BODY -->
+    <div class="app-body">
+
+      <!-- SIDEBAR -->
+      <nav class="sidebar">
+        <div class="nav-group-label">Main</div>
+        <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">📊 Dashboard</div>
+        <div class="nav-item" id="nav-candidates" onclick="showPage('candidates')">👥 All Candidates</div>
+        <div class="nav-group-label">Pipeline</div>
+        <div class="nav-item" onclick="showPage('candidates','Selected')">✅ Selected</div>
+        <div class="nav-item" onclick="showPage('candidates','Rejected')">❌ Rejected</div>
+        <div class="nav-item" onclick="showPage('candidates','On Hold')">⏸ On Hold</div>
+        <div class="nav-group-label">More</div>
+        <div class="nav-item" id="nav-departments" onclick="showPage('departments')">🏢 Departments</div>
+      </nav>
+
+      <!-- PAGES -->
+      <main class="main-content">
+
+        <!-- DASHBOARD -->
+        <section class="page active" id="page-dashboard">
+
+          <!-- WELCOME BANNER -->
+          <div class="welcome-banner">
+            <div class="welcome-banner-text">
+              <h2 id="dash-welcome">Welcome, Digvijay! 👋</h2>
+              <p>Here's an overview of your talent pipeline today.</p>
+            </div>
+            <div class="welcome-banner-badge">
+              <span class="num" id="wb-total">0</span>
+              <span class="lbl">Total Candidates</span>
+            </div>
+          </div>
+
+          <div class="page-header">
+            <h1>Dashboard</h1>
+            <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Candidate</button>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card blue"><div class="stat-label">Total</div><div class="stat-val" id="s-total">0</div></div>
+            <div class="stat-card green"><div class="stat-label">Selected</div><div class="stat-val" id="s-sel">0</div></div>
+            <div class="stat-card red"><div class="stat-label">Rejected</div><div class="stat-val" id="s-rej">0</div></div>
+            <div class="stat-card yellow"><div class="stat-label">On Hold</div><div class="stat-val" id="s-hold">0</div></div>
+            <div class="stat-card purple"><div class="stat-label">Departments</div><div class="stat-val" id="s-dept">0</div></div>
+          </div>
+
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-head">📈 Pipeline Overview</div>
+            <div class="card-body">
+              <div class="pipe-labels">
+                <span class="green-t">✓ Selected</span>
+                <span class="red-t">✗ Rejected</span>
+                <span class="yellow-t">⏸ On Hold</span>
+              </div>
+              <div class="pipe-bar">
+                <div id="pipe-sel" class="pipe-sel"></div>
+                <div id="pipe-rej" class="pipe-rej"></div>
+                <div id="pipe-hold" class="pipe-hold"></div>
+              </div>
+              <div id="dept-bars" class="dept-bars"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">🕐 Recent Candidates</div>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Name</th><th>Department</th><th>Position</th><th>Status</th><th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="recent-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- CANDIDATES -->
+        <section class="page" id="page-candidates">
+          <div class="page-header">
+            <h1>All Candidates</h1>
+            <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Candidate</button>
+          </div>
+          <div class="card">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input id="srch" type="text" placeholder="Search name, email, position, skills..." oninput="applyFilters()"/>
+              </div>
+              <select id="f-status" onchange="applyFilters()">
+                <option value="">All Statuses</option>
+                <option>Selected</option>
+                <option>Rejected</option>
+                <option>On Hold</option>
+              </select>
+              <select id="f-dept" onchange="applyFilters()">
+                <option value="">All Departments</option>
+              </select>
+              <select id="f-sort" onchange="applyFilters()">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="name">Name A–Z</option>
+              </select>
+            </div>
+            <div id="c-loading" class="loading-state"><div class="spinner"></div> Loading candidates...</div>
+            <table class="tbl" id="c-table" style="display:none">
+              <thead>
+                <tr>
+                  <th>Name</th><th>Dept</th><th>Position</th><th>Exp</th><th>Status</th><th>Date</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="c-tbody"></tbody>
+            </table>
+            <div id="c-empty" class="empty-state" style="display:none">
+              <div style="font-size:40px;margin-bottom:6px">👥</div>
+              <p style="font-weight:600">No candidates found</p>
+              <p style="font-size:12px">Try adjusting your filters or add a new candidate.</p>
+            </div>
+            <div class="pagination" id="pagination">
+              <span id="page-info"></span>
+              <div>
+                <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="changePage(-1)">← Prev</button>
+                <button class="btn btn-ghost btn-sm" id="btn-next" onclick="changePage(1)">Next →</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- DEPARTMENTS -->
+        <section class="page" id="page-departments">
+          <div class="page-header"><h1>Departments</h1></div>
+          <div id="dept-grid" class="dept-grid"></div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+       ADD / EDIT MODAL
+  ════════════════════════════════ -->
+  <div class="overlay" id="modal-add" onclick="overlayClose(event,'modal-add')">
+    <div class="modal">
+      <div class="modal-hdr">
+        <h2 id="modal-title">Add Candidate</h2>
+        <button class="close-btn" onclick="closeModal('modal-add')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-id"/>
+
+        <div class="section-title">Personal Info</div>
+        <div class="field-row">
+          <div class="field"><label>Full Name *</label><input id="f-name" placeholder="Candidate name"/></div>
+          <div class="field"><label>Email</label><input type="email" id="f-email" placeholder="email@example.com"/></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Phone</label><input id="f-phone" placeholder="+91 9876543210"/></div>
+          <div class="field"><label>Location</label><input id="f-loc" placeholder="City, State"/></div>
+        </div>
+
+        <div class="section-title">Job Info</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Department *</label>
+            <select id="f-dept-sel">
+              <option value="">Select Department</option>
+              <option>Engineering</option><option>Design</option><option>Product</option>
+              <option>Marketing</option><option>Sales</option><option>HR</option>
+              <option>Finance</option><option>Operations</option><option>Legal</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field"><label>Position</label><input id="f-pos" placeholder="Senior Developer"/></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Experience (yrs)</label><input type="number" id="f-exp" min="0" placeholder="3"/></div>
+          <div class="field"><label>Current CTC (LPA)</label><input id="f-ctc" placeholder="12"/></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Expected CTC (LPA)</label><input id="f-ectc" placeholder="18"/></div>
+          <div class="field"><label>Skills</label><input id="f-skills" placeholder="React, Node.js, SQL"/></div>
+        </div>
+
+        <div class="section-title">Pipeline Status</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Status *</label>
+            <select id="f-status-sel">
+              <option>On Hold</option><option>Selected</option><option>Rejected</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Interview Round</label>
+            <select id="f-round">
+              <option>Screening</option><option>Round 1</option><option>Round 2</option>
+              <option>HR Round</option><option>Final</option><option>Offer</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="f-notes" placeholder="Interview notes, feedback, observations..."></textarea>
+        </div>
+
+        <div class="section-title">Work History</div>
+        <div id="wh-list"></div>
+        <button class="add-wh-btn" onclick="addWH()">+ Add Work Experience</button>
+
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal('modal-add')">Cancel</button>
+          <button class="btn btn-primary" onclick="saveCandidate()">Save Candidate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+       VIEW MODAL
+  ════════════════════════════════ -->
+  <div class="overlay" id="modal-view" onclick="overlayClose(event,'modal-view')">
+    <div class="modal">
+      <div class="modal-hdr">
+        <h2 id="view-title">Candidate</h2>
+        <button class="close-btn" onclick="closeModal('modal-view')">✕</button>
+      </div>
+      <div class="modal-body" id="view-body"></div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toasts"></div>
+
+  <!-- App JS (Firebase module) -->
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>

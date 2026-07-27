@@ -1,0 +1,542 @@
+// ══════════════════════════════════════════════════════
+//  Mini ATS — app.js
+//  Firebase v10 (modular CDN) + pure JS
+// ══════════════════════════════════════════════════════
+
+import { initializeApp }                                    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword,
+         signInWithEmailAndPassword, signOut,
+         onAuthStateChanged, updateProfile }                from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs,
+         doc, updateDoc, deleteDoc,
+         query, orderBy, serverTimestamp }                  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ──────────────────────────────────────────────────────
+//  🔥  PASTE YOUR FIREBASE CONFIG HERE
+// ──────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyB3Z4-HU5pADplI-5ONrnV-4sm-eYMXRLo",
+  authDomain:        "ats-system-d83ef.firebaseapp.com",
+  projectId:         "ats-system-d83ef",
+  storageBucket:     "ats-system-d83ef.firebasestorage.app",
+  messagingSenderId: "150874136182",
+  appId:             "1:150874136182:web:c0a8542124cc33647f0957"
+};
+// ──────────────────────────────────────────────────────
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── State ──
+let currentUser  = null;
+let allCandidates = [];
+let filtered     = [];
+let currentPage  = 1;
+let whCount      = 0;
+const PAGE_SIZE  = 50;   // supports 500+ records across 10 pages
+
+// ═══════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════
+function toast(msg, type = "") {
+  const c = document.getElementById("toasts");
+  const t = document.createElement("div");
+  t.className = "toast " + type;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3400);
+}
+
+function esc(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function fmtDate(ts) {
+  if (!ts) return "—";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function statusBadge(s) {
+  const cls = { Selected: "badge-sel", Rejected: "badge-rej", "On Hold": "badge-hold" };
+  return `<span class="badge ${cls[s] || "badge-hold"}">${s || "On Hold"}</span>`;
+}
+
+function authErr(code) {
+  return {
+    "auth/invalid-email":        "Invalid email address.",
+    "auth/user-not-found":       "No account found.",
+    "auth/wrong-password":       "Wrong password.",
+    "auth/email-already-in-use": "Email already registered.",
+    "auth/weak-password":        "Password too weak (min 6 chars).",
+    "auth/invalid-credential":   "Invalid email or password.",
+    "auth/too-many-requests":    "Too many attempts. Try later.",
+  }[code] || "Error: " + code;
+}
+
+// ═══════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════
+window.switchTab = function(tab) {
+  document.getElementById("form-login").style.display  = tab === "login"  ? "block" : "none";
+  document.getElementById("form-signup").style.display = tab === "signup" ? "block" : "none";
+  document.getElementById("tab-login").classList.toggle("active",  tab === "login");
+  document.getElementById("tab-signup").classList.toggle("active", tab === "signup");
+  document.getElementById("auth-form-login-header").style.display  = tab === "login"  ? "block" : "none";
+  document.getElementById("auth-form-signup-header").style.display = tab === "signup" ? "block" : "none";
+  document.getElementById("auth-error").style.display = "none";
+};
+
+function showAuthError(msg) {
+  const el = document.getElementById("auth-error");
+  el.style.display = "flex";
+  document.getElementById("auth-error-text").textContent = msg;
+}
+
+window.doLogin = async function() {
+  const email = document.getElementById("login-email").value.trim();
+  const pass  = document.getElementById("login-pass").value;
+  if (!email || !pass) { showAuthError("Please fill all fields."); return; }
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    toast("Welcome back! 👋", "ok");
+  } catch(e) { showAuthError(authErr(e.code)); }
+};
+
+window.doSignup = async function() {
+  const name  = document.getElementById("su-name").value.trim();
+  const email = document.getElementById("su-email").value.trim();
+  const pass  = document.getElementById("su-pass").value;
+  if (!name || !email || !pass) { showAuthError("Please fill all fields."); return; }
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await updateProfile(cred.user, { displayName: name });
+    toast("Account created! Welcome 🎉", "ok");
+  } catch(e) { showAuthError(authErr(e.code)); }
+};
+
+window.doLogout = async function() {
+  await signOut(auth);
+  allCandidates = [];
+  toast("Logged out.");
+};
+
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if (user) {
+    document.getElementById("screen-auth").style.display = "none";
+    document.getElementById("screen-app").style.display  = "flex";
+    document.getElementById("user-pill").textContent     = user.email;
+
+    // Personalise welcome messages
+    const firstName = (user.displayName || "Digvijay").split(" ")[0];
+    document.getElementById("welcome-msg").textContent  = `Welcome, ${firstName} 👋`;
+    document.getElementById("dash-welcome").textContent = `Welcome, ${firstName}! 👋`;
+
+    await loadCandidates();
+    renderDashboard();
+  } else {
+    document.getElementById("screen-auth").style.display = "flex";
+    document.getElementById("screen-app").style.display  = "none";
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  FIRESTORE
+// ═══════════════════════════════════════════════════════
+function colRef() {
+  return collection(db, `users/${currentUser.uid}/candidates`);
+}
+
+async function loadCandidates() {
+  document.getElementById("c-loading").style.display = "flex";
+  document.getElementById("c-table").style.display   = "none";
+  try {
+    const q    = query(colRef(), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    allCandidates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    applyFilters();
+    populateDeptFilter();
+  } catch(e) {
+    toast("Load error: " + e.message, "err");
+  }
+  document.getElementById("c-loading").style.display = "none";
+}
+
+window.saveCandidate = async function() {
+  const name = document.getElementById("f-name").value.trim();
+  const dept = document.getElementById("f-dept-sel").value;
+  if (!name) { toast("Name is required.", "err"); return; }
+  if (!dept) { toast("Department is required.", "err"); return; }
+
+  // collect work history
+  const wh = [];
+  document.querySelectorAll(".wh-entry").forEach(el => {
+    const company = el.querySelector(".wh-co").value.trim();
+    const role    = el.querySelector(".wh-role").value.trim();
+    const from    = el.querySelector(".wh-from").value.trim();
+    const to      = el.querySelector(".wh-to").value.trim();
+    const desc    = el.querySelector(".wh-desc").value.trim();
+    if (company) wh.push({ company, role, from, to, desc });
+  });
+
+  const data = {
+    name, dept,
+    status:      document.getElementById("f-status-sel").value,
+    email:       document.getElementById("f-email").value.trim(),
+    phone:       document.getElementById("f-phone").value.trim(),
+    location:    document.getElementById("f-loc").value.trim(),
+    position:    document.getElementById("f-pos").value.trim(),
+    experience:  document.getElementById("f-exp").value || "0",
+    ctc:         document.getElementById("f-ctc").value.trim(),
+    expectedCtc: document.getElementById("f-ectc").value.trim(),
+    skills:      document.getElementById("f-skills").value.trim(),
+    round:       document.getElementById("f-round").value,
+    notes:       document.getElementById("f-notes").value.trim(),
+    workHistory: wh,
+    updatedAt:   serverTimestamp(),
+  };
+
+  const editId = document.getElementById("edit-id").value;
+  try {
+    if (editId) {
+      await updateDoc(doc(db, `users/${currentUser.uid}/candidates`, editId), data);
+      toast("Updated! ✅", "ok");
+    } else {
+      data.createdAt = serverTimestamp();
+      await addDoc(colRef(), data);
+      toast("Candidate added! ✅", "ok");
+    }
+    closeModal("modal-add");
+    await loadCandidates();
+    renderDashboard();
+  } catch(e) { toast("Error: " + e.message, "err"); }
+};
+
+window.deleteCandidate = async function(id) {
+  if (!confirm("Delete this candidate permanently?")) return;
+  try {
+    await deleteDoc(doc(db, `users/${currentUser.uid}/candidates`, id));
+    toast("Deleted.", "ok");
+    await loadCandidates();
+    renderDashboard();
+  } catch(e) { toast("Error: " + e.message, "err"); }
+};
+
+window.changeStatus = async function(id, status) {
+  try {
+    await updateDoc(doc(db, `users/${currentUser.uid}/candidates`, id), { status, updatedAt: serverTimestamp() });
+    toast("Status → " + status, "ok");
+    await loadCandidates();
+    renderDashboard();
+  } catch(e) { toast("Error: " + e.message, "err"); }
+};
+
+// ═══════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════
+window.showPage = function(page, statusFilter) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("page-" + page).classList.add("active");
+  const navEl = document.getElementById("nav-" + page);
+  if (navEl) navEl.classList.add("active");
+
+  if (page === "candidates" && statusFilter) {
+    document.getElementById("f-status").value = statusFilter;
+    applyFilters();
+  }
+  if (page === "departments") renderDepts();
+};
+
+// ═══════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════
+function renderDashboard() {
+  const total = allCandidates.length;
+  const sel   = allCandidates.filter(c => c.status === "Selected").length;
+  const rej   = allCandidates.filter(c => c.status === "Rejected").length;
+  const hold  = allCandidates.filter(c => c.status === "On Hold").length;
+  const depts = new Set(allCandidates.map(c => c.dept).filter(Boolean)).size;
+
+  document.getElementById("s-total").textContent  = total;
+  document.getElementById("s-sel").textContent    = sel;
+  document.getElementById("s-rej").textContent    = rej;
+  document.getElementById("s-hold").textContent   = hold;
+  document.getElementById("s-dept").textContent   = depts;
+  document.getElementById("wb-total").textContent = total;
+
+  const pct = n => total ? (n / total * 100).toFixed(1) + "%" : "0%";
+  document.getElementById("pipe-sel").style.width  = pct(sel);
+  document.getElementById("pipe-rej").style.width  = pct(rej);
+  document.getElementById("pipe-hold").style.width = pct(hold);
+
+  // dept bars
+  const deptMap = {};
+  allCandidates.forEach(c => { if (c.dept) deptMap[c.dept] = (deptMap[c.dept] || 0) + 1; });
+  const sorted = Object.entries(deptMap).sort((a, b) => b[1] - a[1]);
+  document.getElementById("dept-bars").innerHTML = sorted.map(([d, n]) => `
+    <div class="dept-row">
+      <span class="dept-name">${esc(d)}</span>
+      <div class="dept-track"><div class="dept-fill" style="width:${total ? (n/total*100).toFixed(1) : 0}%"></div></div>
+      <span class="dept-count">${n}</span>
+    </div>`).join("");
+
+  // recent
+  document.getElementById("recent-tbody").innerHTML =
+    allCandidates.slice(0, 8).map(c => `
+      <tr>
+        <td><strong style="cursor:pointer;color:var(--accent)" onclick="openViewModal('${c.id}')">${esc(c.name)}</strong></td>
+        <td><span class="badge badge-dept">${esc(c.dept || "—")}</span></td>
+        <td>${esc(c.position || "—")}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td style="color:var(--muted)">${fmtDate(c.createdAt)}</td>
+      </tr>`).join("")
+    || `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">No candidates yet. Add one! 👆</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANDIDATES TABLE
+// ═══════════════════════════════════════════════════════
+window.applyFilters = function() {
+  const srch    = document.getElementById("srch").value.toLowerCase();
+  const statF   = document.getElementById("f-status").value;
+  const deptF   = document.getElementById("f-dept").value;
+  const sortV   = document.getElementById("f-sort").value;
+
+  filtered = allCandidates.filter(c => {
+    const matchSrch = !srch || [c.name, c.email, c.position, c.skills]
+      .some(f => (f || "").toLowerCase().includes(srch));
+    const matchStat = !statF || c.status === statF;
+    const matchDept = !deptF || c.dept === deptF;
+    return matchSrch && matchStat && matchDept;
+  });
+
+  if (sortV === "name")   filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  if (sortV === "oldest") filtered.reverse();
+
+  currentPage = 1;
+  renderTable();
+};
+
+function renderTable() {
+  const start   = (currentPage - 1) * PAGE_SIZE;
+  const pageArr = filtered.slice(start, start + PAGE_SIZE);
+
+  if (!filtered.length) {
+    document.getElementById("c-table").style.display   = "none";
+    document.getElementById("c-empty").style.display   = "flex";
+    document.getElementById("pagination").style.display = "none";
+    return;
+  }
+
+  document.getElementById("c-table").style.display    = "";
+  document.getElementById("c-empty").style.display    = "none";
+  document.getElementById("pagination").style.display = "flex";
+
+  document.getElementById("c-tbody").innerHTML = pageArr.map(c => `
+    <tr>
+      <td>
+        <strong style="cursor:pointer;color:var(--accent)" onclick="openViewModal('${c.id}')">${esc(c.name)}</strong>
+        <div style="font-size:11px;color:var(--muted)">${esc(c.email || "")}</div>
+      </td>
+      <td><span class="badge badge-dept">${esc(c.dept || "—")}</span></td>
+      <td>${esc(c.position || "—")}</td>
+      <td style="color:var(--muted)">${c.experience || 0} yr</td>
+      <td>${statusBadge(c.status)}</td>
+      <td style="color:var(--muted)">${fmtDate(c.createdAt)}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="openEditModal('${c.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCandidate('${c.id}')">🗑</button>
+          ${c.status !== "Selected" ? `<button class="btn btn-success btn-sm" onclick="changeStatus('${c.id}','Selected')">✓</button>` : ""}
+          ${c.status !== "Rejected" ? `<button class="btn btn-danger btn-sm"  onclick="changeStatus('${c.id}','Rejected')">✗</button>` : ""}
+          ${c.status !== "On Hold"  ? `<button class="btn btn-warn btn-sm"    onclick="changeStatus('${c.id}','On Hold')">⏸</button>` : ""}
+        </div>
+      </td>
+    </tr>`).join("");
+
+  const pages = Math.ceil(filtered.length / PAGE_SIZE);
+  document.getElementById("page-info").textContent =
+    `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length}`;
+  document.getElementById("btn-prev").disabled = currentPage === 1;
+  document.getElementById("btn-next").disabled = currentPage >= pages;
+}
+
+window.changePage = function(dir) {
+  currentPage += dir;
+  renderTable();
+};
+
+function populateDeptFilter() {
+  const depts   = [...new Set(allCandidates.map(c => c.dept).filter(Boolean))].sort();
+  const sel     = document.getElementById("f-dept");
+  const current = sel.value;
+  sel.innerHTML = `<option value="">All Departments</option>` +
+    depts.map(d => `<option value="${d}"${d === current ? " selected" : ""}>${d}</option>`).join("");
+}
+
+// ═══════════════════════════════════════════════════════
+//  DEPARTMENTS PAGE
+// ═══════════════════════════════════════════════════════
+function renderDepts() {
+  const map = {};
+  allCandidates.forEach(c => {
+    if (!c.dept) return;
+    if (!map[c.dept]) map[c.dept] = { total: 0, sel: 0, rej: 0, hold: 0 };
+    map[c.dept].total++;
+    if (c.status === "Selected") map[c.dept].sel++;
+    else if (c.status === "Rejected") map[c.dept].rej++;
+    else map[c.dept].hold++;
+  });
+
+  const grid = document.getElementById("dept-grid");
+  grid.innerHTML = Object.entries(map).map(([d, v]) => `
+    <div class="dept-card" onclick="filterDept('${d}')">
+      <h3>${esc(d)}</h3>
+      <div class="dept-mini-bar">
+        <div style="background:var(--green);width:${v.total ? (v.sel/v.total*100).toFixed(0) : 0}%"></div>
+        <div style="background:var(--red);  width:${v.total ? (v.rej/v.total*100).toFixed(0) : 0}%"></div>
+        <div style="background:var(--yellow);width:${v.total ? (v.hold/v.total*100).toFixed(0) : 0}%"></div>
+      </div>
+      <div class="dept-stat-row">
+        <span style="color:var(--green)">✓ ${v.sel}</span>
+        <span style="color:var(--red)">✗ ${v.rej}</span>
+        <span style="color:var(--yellow)">⏸ ${v.hold}</span>
+        <span style="color:var(--muted)">Total: ${v.total}</span>
+      </div>
+    </div>`).join("")
+    || "<p style='color:var(--muted)'>No candidates added yet.</p>";
+}
+
+window.filterDept = function(dept) {
+  showPage("candidates");
+  document.getElementById("f-dept").value = dept;
+  applyFilters();
+};
+
+// ═══════════════════════════════════════════════════════
+//  MODALS
+// ═══════════════════════════════════════════════════════
+function clearForm() {
+  ["f-name","f-email","f-phone","f-loc","f-pos","f-exp","f-ctc","f-ectc","f-skills","f-notes"]
+    .forEach(id => { document.getElementById(id).value = ""; });
+  document.getElementById("f-dept-sel").value   = "";
+  document.getElementById("f-status-sel").value = "On Hold";
+  document.getElementById("f-round").value      = "Screening";
+  document.getElementById("edit-id").value      = "";
+  document.getElementById("wh-list").innerHTML  = "";
+  whCount = 0;
+}
+
+window.openAddModal = function() {
+  clearForm();
+  document.getElementById("modal-title").textContent = "Add Candidate";
+  document.getElementById("modal-add").classList.add("open");
+};
+
+window.openEditModal = function(id) {
+  const c = allCandidates.find(x => x.id === id);
+  if (!c) return;
+  clearForm();
+  document.getElementById("modal-title").textContent  = "Edit Candidate";
+  document.getElementById("edit-id").value            = id;
+  document.getElementById("f-name").value             = c.name        || "";
+  document.getElementById("f-email").value            = c.email       || "";
+  document.getElementById("f-phone").value            = c.phone       || "";
+  document.getElementById("f-loc").value              = c.location    || "";
+  document.getElementById("f-pos").value              = c.position    || "";
+  document.getElementById("f-exp").value              = c.experience  || "";
+  document.getElementById("f-ctc").value              = c.ctc         || "";
+  document.getElementById("f-ectc").value             = c.expectedCtc || "";
+  document.getElementById("f-skills").value           = c.skills      || "";
+  document.getElementById("f-notes").value            = c.notes       || "";
+  document.getElementById("f-dept-sel").value         = c.dept        || "";
+  document.getElementById("f-status-sel").value       = c.status      || "On Hold";
+  document.getElementById("f-round").value            = c.round       || "Screening";
+  (c.workHistory || []).forEach(wh => addWH(wh));
+  document.getElementById("modal-add").classList.add("open");
+};
+
+window.openViewModal = function(id) {
+  const c = allCandidates.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById("view-title").textContent = c.name;
+
+  const skills = (c.skills || "").split(",").filter(Boolean)
+    .map(s => `<span class="skill-tag">${esc(s.trim())}</span>`).join("");
+
+  const wh = (c.workHistory || []).map(w => `
+    <div class="wh-card">
+      <div class="wh-card-hdr">${esc(w.company)}</div>
+      <div style="font-size:13px;margin-bottom:4px">💼 ${esc(w.role || "—")}</div>
+      ${w.from || w.to ? `<div style="font-size:12px;color:var(--muted)">📅 ${esc(w.from || "?")} → ${esc(w.to || "Present")}</div>` : ""}
+      ${w.desc ? `<div style="font-size:13px;color:var(--muted);margin-top:6px">${esc(w.desc)}</div>` : ""}
+    </div>`).join("");
+
+  document.getElementById("view-body").innerHTML = `
+    <div class="dv-section">
+      <h3>Personal</h3>
+      <div class="dv-grid">
+        <div class="dv-item"><label>Email</label><p>${esc(c.email||"—")}</p></div>
+        <div class="dv-item"><label>Phone</label><p>${esc(c.phone||"—")}</p></div>
+        <div class="dv-item"><label>Location</label><p>${esc(c.location||"—")}</p></div>
+        <div class="dv-item"><label>Status</label><p>${statusBadge(c.status)}</p></div>
+      </div>
+    </div>
+    <div class="dv-section">
+      <h3>Job Info</h3>
+      <div class="dv-grid">
+        <div class="dv-item"><label>Department</label><p><span class="badge badge-dept">${esc(c.dept||"—")}</span></p></div>
+        <div class="dv-item"><label>Position</label><p>${esc(c.position||"—")}</p></div>
+        <div class="dv-item"><label>Experience</label><p>${c.experience||0} years</p></div>
+        <div class="dv-item"><label>Current CTC</label><p>${c.ctc ? c.ctc+" LPA" : "—"}</p></div>
+        <div class="dv-item"><label>Expected CTC</label><p>${c.expectedCtc ? c.expectedCtc+" LPA" : "—"}</p></div>
+        <div class="dv-item"><label>Round</label><p>${esc(c.round||"—")}</p></div>
+      </div>
+      ${skills ? `<div style="margin-top:12px"><label class="dv-item" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)">Skills</label><div style="margin-top:6px">${skills}</div></div>` : ""}
+    </div>
+    ${c.notes ? `<div class="dv-section"><h3>Notes</h3><p style="font-size:13px;white-space:pre-wrap">${esc(c.notes)}</p></div>` : ""}
+    ${wh ? `<div class="dv-section"><h3>Work History</h3>${wh}</div>` : ""}
+    <div style="display:flex;gap:10px;margin-top:8px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-view');openEditModal('${c.id}')">✏️ Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="closeModal('modal-view');deleteCandidate('${c.id}')">🗑 Delete</button>
+    </div>`;
+
+  document.getElementById("modal-view").classList.add("open");
+};
+
+window.closeModal = id => document.getElementById(id).classList.remove("open");
+
+window.overlayClose = function(e, id) {
+  if (e.target.id === id) closeModal(id);
+};
+
+// ═══════════════════════════════════════════════════════
+//  WORK HISTORY FIELDS
+// ═══════════════════════════════════════════════════════
+window.addWH = function(data = {}) {
+  whCount++;
+  const div = document.createElement("div");
+  div.className = "wh-card wh-entry";
+  div.innerHTML = `
+    <div class="wh-card-hdr">
+      Experience #${whCount}
+      <button class="btn btn-ghost btn-sm" onclick="this.closest('.wh-entry').remove()" style="font-size:11px">Remove</button>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Company</label><input class="wh-co"   value="${esc(data.company||"")}" placeholder="Google"/></div>
+      <div class="field"><label>Role</label><input class="wh-role" value="${esc(data.role||"")}"    placeholder="Engineer"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>From</label><input class="wh-from" value="${esc(data.from||"")}" placeholder="Jan 2020"/></div>
+      <div class="field"><label>To</label><input class="wh-to"   value="${esc(data.to||"")}"   placeholder="Dec 2022"/></div>
+    </div>
+    <div class="field"><label>Description</label><input class="wh-desc" value="${esc(data.desc||"")}" placeholder="Key responsibilities..."/></div>`;
+  document.getElementById("wh-list").appendChild(div);
+};
