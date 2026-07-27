@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TalentFlow ATS — Applicant Tracking System</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -153,6 +155,9 @@
         </div>
         <div class="nav-item" onclick="openBulkEmail('Selected')">
           <span class="nav-icon">📧</span> Bulk Email
+        </div>
+        <div class="nav-item" onclick="openEmailSettings()">
+          <span class="nav-icon">⚙️</span> Email Settings
         </div>
       </nav>
 
@@ -451,6 +456,70 @@
   </div>
 
   <!-- ════════════════════════════════
+       EMAIL SETTINGS MODAL
+  ════════════════════════════════ -->
+  <div class="overlay" id="modal-email-settings" onclick="overlayClose(event,'modal-email-settings')">
+    <div class="modal">
+      <div class="modal-hdr">
+        <h2>⚙️ Gmail Connection</h2>
+        <button class="close-btn" onclick="closeModal('modal-email-settings')">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Connected badge -->
+        <div id="es-connected-banner" class="es-connected-banner" style="display:none">
+          <span class="es-connected-dot"></span>
+          <span id="es-connected-label">Gmail connected</span>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="disconnectEmailSettings()">Disconnect</button>
+        </div>
+
+        <!-- How-to steps -->
+        <div class="es-howto">
+          <div class="es-howto-title">How to connect your Gmail in 3 steps</div>
+          <div class="es-step">
+            <div class="es-step-num">1</div>
+            <div>Go to <a href="https://www.emailjs.com" target="_blank" rel="noopener" class="es-link">emailjs.com</a> → Sign up free → <strong>Add Email Service</strong> → choose <strong>Gmail</strong> → Connect your Gmail account → copy the <strong>Service ID</strong>.</div>
+          </div>
+          <div class="es-step">
+            <div class="es-step-num">2</div>
+            <div>Go to <strong>Email Templates</strong> → Create template → use these variables in the body:<br/>
+              <code class="es-code">{{to_email}}</code> &nbsp; <code class="es-code">{{to_name}}</code> &nbsp; <code class="es-code">{{subject}}</code> &nbsp; <code class="es-code">{{message}}</code><br/>
+              Copy the <strong>Template ID</strong>.
+            </div>
+          </div>
+          <div class="es-step">
+            <div class="es-step-num">3</div>
+            <div>Go to <strong>Account → API Keys</strong> → copy your <strong>Public Key</strong>. Paste all three below.</div>
+          </div>
+        </div>
+
+        <div class="section-title">Your EmailJS Credentials</div>
+        <div class="field">
+          <label>Public Key</label>
+          <input id="es-pubkey" placeholder="e.g. user_aBcDeFgHiJkLmNoPqRsT" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label>Service ID</label>
+          <input id="es-service" placeholder="e.g. service_xxxxxxx" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label>Template ID</label>
+          <input id="es-template" placeholder="e.g. template_xxxxxxx" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label>From Name (shown to recipients)</label>
+          <input id="es-fromname" placeholder="e.g. TalentFlow HR Team"/>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal('modal-email-settings')">Cancel</button>
+          <button class="btn btn-primary" onclick="saveEmailSettings()">💾 Save &amp; Connect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
        BULK EMAIL MODAL
   ════════════════════════════════ -->
   <div class="overlay" id="modal-bulk-email" onclick="overlayClose(event,'modal-bulk-email')">
@@ -461,15 +530,27 @@
       </div>
       <div class="modal-body">
 
+        <!-- Gmail account banner -->
+        <div id="be-account-bar" class="be-account-bar">
+          <div id="be-account-info" class="be-account-info" style="display:none">
+            <span class="be-gmail-dot"></span>
+            <span>Sending via Gmail · <strong id="be-from-name">—</strong></span>
+            <button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:11px" onclick="openEmailSettings()">Change</button>
+          </div>
+          <div id="be-account-warn" class="be-account-warn">
+            ⚠️ Gmail not connected. <button class="be-link-btn" onclick="closeModal('modal-bulk-email');openEmailSettings()">Connect now →</button>
+          </div>
+        </div>
+
         <!-- STATUS TABS -->
         <div class="be-tabs">
-          <button class="be-tab active" id="be-tab-Selected"  onclick="switchBulkTab('Selected')">
+          <button class="be-tab active" id="be-tab-Selected" onclick="switchBulkTab('Selected')">
             ✅ Selected <span class="be-tab-badge" id="be-cnt-Selected">0</span>
           </button>
-          <button class="be-tab" id="be-tab-On Hold"   onclick="switchBulkTab('On Hold')">
+          <button class="be-tab" id="be-tab-On Hold" onclick="switchBulkTab('On Hold')">
             ⏸ On Hold <span class="be-tab-badge" id="be-cnt-On Hold">0</span>
           </button>
-          <button class="be-tab" id="be-tab-Rejected"  onclick="switchBulkTab('Rejected')">
+          <button class="be-tab" id="be-tab-Rejected" onclick="switchBulkTab('Rejected')">
             ❌ Rejected <span class="be-tab-badge" id="be-cnt-Rejected">0</span>
           </button>
         </div>
@@ -496,17 +577,27 @@
         </div>
         <div class="field">
           <label>Message Body</label>
-          <textarea id="be-body" style="min-height:160px" placeholder="Dear Candidate,&#10;&#10;We wanted to inform you...&#10;&#10;Regards,&#10;HR Team"></textarea>
+          <textarea id="be-body" style="min-height:150px" placeholder="Dear {{name}},&#10;&#10;We wanted to inform you...&#10;&#10;Regards,&#10;HR Team"></textarea>
+        </div>
+        <div class="be-note">
+          💡 Use <code>{{name}}</code> in the body to auto-personalise with each candidate's name. Emails are sent one-by-one from your connected Gmail via EmailJS.
         </div>
 
-        <!-- PREVIEW NOTE -->
-        <div class="be-note">
-          💡 Clicking <strong>Send Emails</strong> will open your default email client with all selected recipients in the BCC field and the composed message pre-filled. Each candidate receives the same email.
+        <!-- PROGRESS BAR (hidden until sending) -->
+        <div id="be-progress-wrap" class="be-progress-wrap" style="display:none">
+          <div class="be-progress-label">
+            <span id="be-progress-text">Sending 0 of 0…</span>
+            <span id="be-progress-pct">0%</span>
+          </div>
+          <div class="be-progress-track">
+            <div class="be-progress-fill" id="be-progress-fill"></div>
+          </div>
+          <div id="be-progress-log" class="be-progress-log"></div>
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-ghost" onclick="closeModal('modal-bulk-email')">Cancel</button>
-          <button class="btn btn-primary" onclick="sendBulkEmail()">📤 Send Emails</button>
+          <button class="btn btn-ghost" id="be-cancel-btn" onclick="closeModal('modal-bulk-email')">Cancel</button>
+          <button class="btn btn-primary" id="be-send-btn" onclick="sendBulkEmail()">📤 Send Emails</button>
         </div>
       </div>
     </div>

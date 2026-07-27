@@ -552,13 +552,86 @@ window.addWH = function(data = {}) {
 };
 
 // ═══════════════════════════════════════════════════════
+//  EMAIL SETTINGS  (localStorage)
+// ═══════════════════════════════════════════════════════
+const ES_KEY = "ats_emailjs_settings";
+
+function getEmailSettings() {
+  try { return JSON.parse(localStorage.getItem(ES_KEY)) || null; } catch { return null; }
+}
+
+function isEmailConnected() {
+  const s = getEmailSettings();
+  return s && s.pubkey && s.service && s.template;
+}
+
+window.openEmailSettings = function() {
+  const s = getEmailSettings();
+  // pre-fill saved values
+  document.getElementById("es-pubkey").value   = s?.pubkey    || "";
+  document.getElementById("es-service").value  = s?.service   || "";
+  document.getElementById("es-template").value = s?.template  || "";
+  document.getElementById("es-fromname").value = s?.fromName  || "";
+
+  const banner = document.getElementById("es-connected-banner");
+  if (isEmailConnected()) {
+    banner.style.display = "flex";
+    document.getElementById("es-connected-label").textContent =
+      `Gmail connected · ${s.fromName || "EmailJS"}`;
+  } else {
+    banner.style.display = "none";
+  }
+  document.getElementById("modal-email-settings").classList.add("open");
+};
+
+window.saveEmailSettings = function() {
+  const pubkey   = document.getElementById("es-pubkey").value.trim();
+  const service  = document.getElementById("es-service").value.trim();
+  const template = document.getElementById("es-template").value.trim();
+  const fromName = document.getElementById("es-fromname").value.trim();
+
+  if (!pubkey || !service || !template) {
+    toast("Please fill Public Key, Service ID and Template ID.", "err"); return;
+  }
+
+  localStorage.setItem(ES_KEY, JSON.stringify({ pubkey, service, template, fromName }));
+  // initialise EmailJS with new key
+  emailjs.init(pubkey);
+  toast("Gmail connected via EmailJS ✅", "ok");
+  closeModal("modal-email-settings");
+};
+
+window.disconnectEmailSettings = function() {
+  if (!confirm("Disconnect Gmail? Bulk email will stop working.")) return;
+  localStorage.removeItem(ES_KEY);
+  toast("Gmail disconnected.", "");
+  closeModal("modal-email-settings");
+};
+
+// Initialise EmailJS on page load if already saved
+(function initEmailJSOnLoad() {
+  const s = getEmailSettings();
+  if (s?.pubkey) { try { emailjs.init(s.pubkey); } catch(e) {} }
+})();
+
+// ═══════════════════════════════════════════════════════
 //  BULK EMAIL
 // ═══════════════════════════════════════════════════════
-
 let bulkCurrentStatus = "Selected";
+// map email -> candidate (for name personalisation)
+let bulkCandidateMap  = {};
 
 window.openBulkEmail = function(status = "Selected") {
   bulkCurrentStatus = status;
+
+  // show/hide Gmail connection banner
+  const connected = isEmailConnected();
+  document.getElementById("be-account-info").style.display = connected ? "flex" : "none";
+  document.getElementById("be-account-warn").style.display = connected ? "none" : "block";
+  if (connected) {
+    const s = getEmailSettings();
+    document.getElementById("be-from-name").textContent = s.fromName || "EmailJS";
+  }
 
   // populate tab counts
   ["Selected", "On Hold", "Rejected"].forEach(s => {
@@ -570,12 +643,14 @@ window.openBulkEmail = function(status = "Selected") {
   document.querySelectorAll(".be-tab").forEach(t => t.classList.remove("active"));
   document.getElementById("be-tab-" + status).classList.add("active");
 
-  // render recipients
   renderBulkRecipients(status);
 
-  // clear compose fields
-  document.getElementById("be-subject").value = "";
-  document.getElementById("be-body").value    = "";
+  // reset compose + progress
+  document.getElementById("be-subject").value      = "";
+  document.getElementById("be-body").value         = "";
+  document.getElementById("be-progress-wrap").style.display = "none";
+  document.getElementById("be-send-btn").disabled  = false;
+  document.getElementById("be-cancel-btn").textContent = "Cancel";
 
   document.getElementById("modal-bulk-email").classList.add("open");
 };
@@ -586,17 +661,21 @@ function renderBulkRecipients(status) {
   const noEl  = document.getElementById("be-no-email");
   const allCk = document.getElementById("be-check-all");
 
+  // rebuild candidate map for name lookup
+  bulkCandidateMap = {};
+  candidates.forEach(c => { bulkCandidateMap[c.email] = c; });
+
   if (!candidates.length) {
-    wrap.innerHTML  = "";
-    noEl.style.display  = "block";
-    allCk.checked       = false;
-    allCk.disabled      = true;
+    wrap.innerHTML         = "";
+    noEl.style.display     = "block";
+    allCk.checked          = false;
+    allCk.disabled         = true;
     return;
   }
 
-  noEl.style.display  = "none";
-  allCk.disabled      = false;
-  allCk.checked       = true;
+  noEl.style.display = "none";
+  allCk.disabled     = false;
+  allCk.checked      = true;
 
   wrap.innerHTML = candidates.map(c => `
     <label class="be-recipient-row">
@@ -609,7 +688,6 @@ function renderBulkRecipients(status) {
       <span class="be-recipient-dept">${esc(c.dept || "—")}</span>
     </label>`).join("");
 
-  // keep "select all" checkbox in sync when individual boxes change
   wrap.querySelectorAll(".be-chk").forEach(chk => {
     chk.addEventListener("change", syncSelectAll);
   });
@@ -634,44 +712,84 @@ window.bulkToggleAll = function(checked) {
   document.querySelectorAll(".be-chk").forEach(chk => { chk.checked = checked; });
 };
 
-window.sendBulkEmail = function() {
+window.sendBulkEmail = async function() {
   const subject = document.getElementById("be-subject").value.trim();
   const body    = document.getElementById("be-body").value.trim();
   const emails  = [...document.querySelectorAll(".be-chk:checked")].map(c => c.value);
 
-  if (!emails.length) { toast("No recipients selected.", "err"); return; }
-  if (!subject)       { toast("Please enter a subject.", "err"); return; }
-  if (!body)          { toast("Please enter a message body.", "err"); return; }
+  if (!isEmailConnected()) { toast("Please connect Gmail first (⚙️ Email Settings).", "err"); return; }
+  if (!emails.length)      { toast("No recipients selected.", "err"); return; }
+  if (!subject)            { toast("Please enter a subject.", "err"); return; }
+  if (!body)               { toast("Please enter a message body.", "err"); return; }
 
-  // Build mailto: with BCC so each recipient doesn't see others
-  // mailto:?bcc=a,b,c&subject=...&body=...
-  const bcc      = emails.join(",");
-  const mailto   = `mailto:?bcc=${encodeURIComponent(bcc)}`
-    + `&subject=${encodeURIComponent(subject)}`
-    + `&body=${encodeURIComponent(body)}`;
+  const settings = getEmailSettings();
 
-  // mailto URIs have a browser length limit (~2000 chars for subject+body)
-  // For large lists we chunk into batches of 25
-  const BATCH = 25;
-  if (emails.length <= BATCH) {
-    window.location.href = mailto;
-    toast(`Opening email client for ${emails.length} recipient${emails.length > 1 ? "s" : ""} ✉️`, "ok");
-  } else {
-    // Open in batches
-    const chunks = [];
-    for (let i = 0; i < emails.length; i += BATCH) {
-      chunks.push(emails.slice(i, i + BATCH));
-    }
-    chunks.forEach((chunk, idx) => {
-      setTimeout(() => {
-        const batchMailto = `mailto:?bcc=${encodeURIComponent(chunk.join(","))}`
-          + `&subject=${encodeURIComponent(subject)}`
-          + `&body=${encodeURIComponent(body)}`;
-        window.open(batchMailto, "_blank");
-      }, idx * 800);
-    });
-    toast(`Sending in ${chunks.length} batches (${emails.length} total recipients) ✉️`, "ok");
+  // Lock UI
+  const sendBtn   = document.getElementById("be-send-btn");
+  const cancelBtn = document.getElementById("be-cancel-btn");
+  sendBtn.disabled       = true;
+  sendBtn.textContent    = "Sending…";
+  cancelBtn.textContent  = "Close";
+
+  // Show progress
+  const progressWrap = document.getElementById("be-progress-wrap");
+  const progressFill = document.getElementById("be-progress-fill");
+  const progressText = document.getElementById("be-progress-text");
+  const progressPct  = document.getElementById("be-progress-pct");
+  const progressLog  = document.getElementById("be-progress-log");
+  progressWrap.style.display = "block";
+  progressLog.innerHTML      = "";
+
+  let sent = 0, failed = 0;
+  const total = emails.length;
+
+  function updateProgress() {
+    const done = sent + failed;
+    const pct  = Math.round((done / total) * 100);
+    progressFill.style.width   = pct + "%";
+    progressText.textContent   = `Sending ${done} of ${total}…`;
+    progressPct.textContent    = pct + "%";
   }
 
-  closeModal("modal-bulk-email");
+  function logLine(email, ok, err) {
+    const div = document.createElement("div");
+    div.className = "be-log-line " + (ok ? "be-log-ok" : "be-log-err");
+    div.textContent = (ok ? "✅ " : "❌ ") + email + (err ? ` — ${err}` : "");
+    progressLog.appendChild(div);
+    progressLog.scrollTop = progressLog.scrollHeight;
+  }
+
+  // Send one by one with a small delay to avoid rate limits
+  for (const email of emails) {
+    const candidate = bulkCandidateMap[email] || {};
+    const name      = candidate.name || "Candidate";
+    // Replace {{name}} placeholder in body
+    const personalBody = body.replace(/\{\{name\}\}/gi, name);
+
+    const params = {
+      to_email: email,
+      to_name:  name,
+      subject:  subject,
+      message:  personalBody,
+      from_name: settings.fromName || "TalentFlow HR",
+    };
+
+    try {
+      await emailjs.send(settings.service, settings.template, params);
+      sent++;
+      logLine(email, true);
+    } catch(e) {
+      failed++;
+      logLine(email, false, e?.text || e?.message || "Error");
+    }
+    updateProgress();
+    // 300ms gap between sends to respect EmailJS rate limits
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  // Done
+  progressText.textContent = `Done! ✅ ${sent} sent${failed ? `, ${failed} failed` : ""}`;
+  progressFill.style.background = failed ? "var(--yellow)" : "var(--green)";
+  sendBtn.textContent = "Done";
+  toast(`Sent ${sent} email${sent !== 1 ? "s" : ""}${failed ? ` (${failed} failed)` : ""} ✉️`, sent ? "ok" : "err");
 };
