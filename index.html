@@ -125,6 +125,12 @@
       <div class="topbar-status-dot"></div>
       <span class="welcome-msg" id="welcome-msg">Welcome, Digvijay 👋</span>
       <div class="topbar-divider"></div>
+      <!-- Incoming notifications bell -->
+      <div class="topbar-notif" onclick="showPage('incoming')" title="Incoming Applications">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="topbar-notif-dot" id="incoming-dot" style="display:none"></span>
+      </div>
+      <div class="topbar-divider"></div>
       <div class="topbar-avatar" id="topbar-avatar">D</div>
       <button class="btn-logout" onclick="doLogout()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -187,6 +193,11 @@
       <div class="nav-item" onclick="openEmailSettings()">
         <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
         Email Settings
+      </div>
+      <div class="nav-item" id="nav-incoming" onclick="showPage('incoming')" style="position:relative">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Incoming
+        <span class="nav-badge nav-badge-red" id="nb-incoming" style="display:none;animation:pulseBadge 1.8s ease-in-out infinite">0</span>
       </div>
       <div class="nav-item" id="nav-formimport" onclick="showPage('formimport')">
         <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
@@ -405,6 +416,67 @@
           <p style="color:var(--muted)">No candidates added yet.</p>
         </div>
       </div><!-- /page-departments -->
+
+      <!-- ═══ PAGE: INCOMING APPLICATIONS ═══ -->
+      <div class="page" id="page-incoming">
+
+        <!-- Header -->
+        <div class="page-header">
+          <h1>
+            <span style="display:inline-flex;align-items:center;gap:10px">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Incoming Applications
+            </span>
+          </h1>
+          <button class="btn btn-ghost btn-sm" onclick="loadCandidates().then(()=>renderIncoming())">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg>
+            Refresh
+          </button>
+        </div>
+
+        <!-- Stats bar -->
+        <div class="inc-stats-bar" id="incoming-stats">
+          <div class="inc-stat">
+            <span class="inc-stat-val" id="inc-s-total">0</span>
+            <span class="inc-stat-lbl">Total from Forms</span>
+          </div>
+          <div class="inc-stat inc-stat-amber">
+            <span class="inc-stat-val" id="inc-s-new">0</span>
+            <span class="inc-stat-lbl">Awaiting Review</span>
+          </div>
+          <div class="inc-stat inc-stat-green">
+            <span class="inc-stat-val" id="inc-s-sel">0</span>
+            <span class="inc-stat-lbl">Selected</span>
+          </div>
+          <div class="inc-stat inc-stat-red">
+            <span class="inc-stat-val" id="inc-s-rej">0</span>
+            <span class="inc-stat-lbl">Rejected</span>
+          </div>
+        </div>
+
+        <!-- Empty state (no form submissions at all) -->
+        <div id="incoming-empty" class="empty-state" style="display:none">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.3"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <p>No Google Form submissions yet.</p>
+          <p style="font-size:12px;color:var(--muted);margin-top:-6px">Post your form link on LinkedIn or Naukri to start receiving applications.</p>
+          <button class="btn btn-primary" onclick="showPage('formimport')">📋 Set Up Form Import</button>
+        </div>
+
+        <!-- Awaiting Review section -->
+        <div class="inc-section-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          New — Awaiting Your Review
+        </div>
+        <div class="incoming-grid" id="incoming-grid"></div>
+
+        <!-- Reviewed section -->
+        <div class="inc-section-label" style="margin-top:28px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Already Reviewed
+        </div>
+        <div class="incoming-grid incoming-grid-reviewed" id="reviewed-grid"></div>
+
+      </div><!-- /page-incoming -->
 
       <!-- ═══ PAGE: FORM IMPORT ═══ -->
       <div class="page" id="page-formimport">

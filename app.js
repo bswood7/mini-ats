@@ -9,7 +9,7 @@ import { getAuth, createUserWithEmailAndPassword,
          onAuthStateChanged, updateProfile }                from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs,
          doc, updateDoc, deleteDoc,
-         query, orderBy, serverTimestamp }                  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+         query, orderBy, serverTimestamp, onSnapshot }      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ──────────────────────────────────────────────────────
 //  🔥  PASTE YOUR FIREBASE CONFIG HERE
@@ -29,12 +29,13 @@ const auth = getAuth(app);
 const db   = getFirestore(app);
 
 // ── State ──
-let currentUser  = null;
+let currentUser   = null;
 let allCandidates = [];
-let filtered     = [];
-let currentPage  = 1;
-let whCount      = 0;
-const PAGE_SIZE  = 50;   // supports 500+ records across 10 pages
+let filtered      = [];
+let currentPage   = 1;
+let whCount       = 0;
+let incomingUnsub = null;   // Firestore real-time unsub handle
+const PAGE_SIZE   = 50;     // supports 500+ records across 10 pages
 
 // ═══════════════════════════════════════════════════════
 //  UTILITIES
@@ -142,9 +143,11 @@ onAuthStateChanged(auth, async (user) => {
     spawnParticles();
     await loadCandidates();
     renderDashboard();
+    startIncomingListener();   // live real-time listener for form submissions
   } else {
     document.getElementById("screen-auth").style.display = "flex";
     document.getElementById("screen-app").style.display  = "none";
+    if (incomingUnsub) { incomingUnsub(); incomingUnsub = null; }
   }
 });
 
@@ -254,6 +257,7 @@ window.showPage = function(page, statusFilter) {
     applyFilters();
   }
   if (page === "departments") renderDepts();
+  if (page === "incoming")    renderIncoming();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -310,6 +314,133 @@ function renderDashboard() {
         <td style="color:var(--muted)">${fmtDate(c.createdAt)}</td>
       </tr>`).join("")
     || `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">No candidates yet. Add one! 👆</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  INCOMING APPLICATIONS — real-time Firestore listener
+// ═══════════════════════════════════════════════════════
+function startIncomingListener() {
+  if (incomingUnsub) incomingUnsub();   // clear any old listener
+  const q = query(colRef(), orderBy("createdAt", "desc"));
+  incomingUnsub = onSnapshot(q, (snap) => {
+    // Rebuild full list from snapshot so it stays in sync with loadCandidates
+    allCandidates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Count new unreviewed form submissions = source Google Form + status On Hold
+    const newCount = allCandidates.filter(
+      c => c.source === "Google Form" && c.status === "On Hold"
+    ).length;
+
+    // Update the sidebar badge
+    const badge = document.getElementById("nb-incoming");
+    if (badge) {
+      badge.textContent = newCount;
+      badge.style.display = newCount > 0 ? "inline-flex" : "none";
+    }
+
+    // Update topbar notification dot
+    const dot = document.getElementById("incoming-dot");
+    if (dot) dot.style.display = newCount > 0 ? "block" : "none";
+
+    // If the incoming page is open, re-render it live
+    const pg = document.getElementById("page-incoming");
+    if (pg && pg.classList.contains("active")) renderIncoming();
+
+    // Also refresh dashboard stats
+    renderDashboard();
+  }, (err) => {
+    console.warn("Incoming listener error:", err.message);
+  });
+}
+
+window.renderIncoming = function() {
+  const formCandidates = allCandidates
+    .filter(c => c.source === "Google Form")
+    .sort((a, b) => {
+      const ta = a.createdAt?.seconds || 0;
+      const tb = b.createdAt?.seconds || 0;
+      return tb - ta;
+    });
+
+  const unreviewed = formCandidates.filter(c => c.status === "On Hold");
+  const reviewed   = formCandidates.filter(c => c.status !== "On Hold");
+
+  const grid      = document.getElementById("incoming-grid");
+  const reviewed_grid = document.getElementById("reviewed-grid");
+  const emptyEl   = document.getElementById("incoming-empty");
+  const statsEl   = document.getElementById("incoming-stats");
+  if (!grid) return;
+
+  // Update stats bar
+  const total = formCandidates.length;
+  const sel   = formCandidates.filter(c => c.status === "Selected").length;
+  const rej   = formCandidates.filter(c => c.status === "Rejected").length;
+  const hold  = unreviewed.length;
+  if (statsEl) {
+    document.getElementById("inc-s-total").textContent  = total;
+    document.getElementById("inc-s-new").textContent    = hold;
+    document.getElementById("inc-s-sel").textContent    = sel;
+    document.getElementById("inc-s-rej").textContent    = rej;
+  }
+
+  // Render unreviewed cards
+  if (!unreviewed.length) {
+    grid.innerHTML = "";
+    if (emptyEl) emptyEl.style.display = "flex";
+  } else {
+    if (emptyEl) emptyEl.style.display = "none";
+    grid.innerHTML = unreviewed.map(c => incomingCard(c, false)).join("");
+  }
+
+  // Render reviewed section
+  if (reviewed_grid) {
+    reviewed_grid.innerHTML = reviewed.length
+      ? reviewed.map(c => incomingCard(c, true)).join("")
+      : `<p style="color:var(--muted);font-size:13px;padding:12px 0">No reviewed submissions yet.</p>`;
+  }
+};
+
+function incomingCard(c, isReviewed) {
+  const initials = (c.name || "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const statusClass = c.status === "Selected" ? "badge-sel"
+                    : c.status === "Rejected"  ? "badge-rej"
+                    : "badge-hold";
+  const timeAgo = fmtDate(c.createdAt);
+
+  return `
+  <div class="incoming-card ${isReviewed ? "incoming-card-reviewed" : "incoming-card-new"}">
+    <div class="inc-card-header">
+      <div class="inc-avatar">${initials}</div>
+      <div class="inc-info">
+        <div class="inc-name" onclick="openViewModal('${c.id}')">${esc(c.name)}</div>
+        <div class="inc-meta">
+          ${c.position ? `<span>${esc(c.position)}</span>` : ""}
+          ${c.dept     ? `<span class="badge badge-dept" style="font-size:10px">${esc(c.dept)}</span>` : ""}
+        </div>
+      </div>
+      <span class="badge ${statusClass}" style="margin-left:auto;flex-shrink:0">${esc(c.status)}</span>
+    </div>
+    <div class="inc-details">
+      ${c.email    ? `<span>📧 ${esc(c.email)}</span>` : ""}
+      ${c.phone    ? `<span>📞 ${esc(c.phone)}</span>` : ""}
+      ${c.location ? `<span>📍 ${esc(c.location)}</span>` : ""}
+      ${c.experience ? `<span>⏱ ${esc(c.experience)} yrs exp</span>` : ""}
+    </div>
+    ${c.skills ? `<div class="inc-skills">${c.skills.split(",").filter(Boolean).map(s => `<span class="skill-tag">${esc(s.trim())}</span>`).join("")}</div>` : ""}
+    <div class="inc-time">🕐 Applied: ${timeAgo}</div>
+    ${!isReviewed ? `
+    <div class="inc-actions">
+      <button class="btn btn-success btn-sm" onclick="changeStatus('${c.id}','Selected')">✓ Select</button>
+      <button class="btn btn-warn btn-sm"    onclick="changeStatus('${c.id}','On Hold')">⏸ Hold</button>
+      <button class="btn btn-danger btn-sm"  onclick="changeStatus('${c.id}','Rejected')">✗ Reject</button>
+      <button class="btn btn-ghost btn-sm"   onclick="openViewModal('${c.id}')">👁 View</button>
+    </div>` : `
+    <div class="inc-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openViewModal('${c.id}')">👁 View Full Profile</button>
+      ${c.status === "Rejected" ? `<button class="btn btn-warn btn-sm" onclick="changeStatus('${c.id}','On Hold')">↩ Move to Hold</button>` : ""}
+      ${c.status === "Selected" ? `<button class="btn btn-ghost btn-sm" onclick="changeStatus('${c.id}','Rejected')">✗ Reject</button>` : ""}
+    </div>`}
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════════
