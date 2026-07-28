@@ -956,6 +956,19 @@ function spawnParticles() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  FORM IMPORT — live-update script with user credentials
+// ═══════════════════════════════════════════════════════
+window.updateScript = function() {
+  const email = (document.getElementById("fi-email")?.value.trim()) || "YOUR_EMAIL";
+  const pass  = (document.getElementById("fi-pass")?.value)         || "YOUR_PASSWORD";
+  const pre   = document.getElementById("apps-script-code");
+  if (!pre) return;
+  pre.textContent = pre.textContent
+    .replace(/var USER_EMAIL\s*=\s*"[^"]*"/, `var USER_EMAIL          = "${email}"`)
+    .replace(/var USER_PASSWORD\s*=\s*"[^"]*"/, `var USER_PASSWORD       = "${pass}"`);
+};
+
+// ═══════════════════════════════════════════════════════
 //  FORM IMPORT — copy Apps Script to clipboard
 // ═══════════════════════════════════════════════════════
 window.copyScript = function() {
