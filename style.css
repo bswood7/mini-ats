@@ -1663,3 +1663,140 @@ select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(79,224,214,
   margin-top: 4px; padding-top: 10px;
   border-top: 1px solid var(--line);
 }
+
+/* ═══════════════════════════════════════════════════════
+   ALIASES & NEW CLASSES — 50k architecture additions
+════════════════════════════════════════════════════════ */
+
+/* modal-overlay = alias for .overlay */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(11,22,32,.72);
+  z-index: 200; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+
+/* modal-head = alias for modal-hdr */
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: var(--paper-2); z-index: 1;
+}
+.modal-head h2 {
+  font-family: var(--f-head); font-size: 17px; font-weight: 700;
+  letter-spacing: -.2px; color: var(--steel-2);
+}
+
+/* modal-foot */
+.modal-foot {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--line);
+  background: #f7f9f8;
+  position: sticky; bottom: 0; z-index: 1;
+}
+
+/* modal-close button */
+.modal-close {
+  width: 30px; height: 30px; background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r); font-size: 14px; cursor: pointer; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; transition: background .13s;
+  flex-shrink: 0;
+}
+.modal-close:hover { background: var(--line); }
+
+/* ── AUTH ── */
+.auth-form { display: none; }
+.auth-form.active { display: block; }
+
+.auth-error, .error-box {
+  background: var(--red-dim); border: 1px solid rgba(214,59,59,.3);
+  color: var(--red); border-radius: var(--r);
+  padding: 9px 14px; font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* ── TOPBAR NEW ELEMENTS ── */
+.welcome-pill {
+  font-family: var(--f-mono); font-size: 12px; letter-spacing: .04em;
+  color: var(--cyan); background: var(--cyan-dim);
+  border: 1px solid rgba(79,224,214,.2);
+  padding: 4px 12px; border-radius: 20px;
+}
+
+.topbar-bell {
+  position: relative; background: transparent; border: none;
+  color: #9FB4B9; cursor: pointer; padding: 4px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r); transition: color .15s, background .15s;
+}
+.topbar-bell:hover { color: var(--amber); background: rgba(255,176,32,.1); }
+
+.bell-dot {
+  position: absolute; top: 2px; right: 2px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px var(--steel-2);
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+.topbar-logo { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+/* ── INCOMING CARD NEW LAYOUT ── */
+.inc-card-top {
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.inc-card-info { flex: 1; min-width: 0; }
+.inc-card-actions {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-top: 8px; padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.incoming-card.reviewed { opacity: .82; }
+
+.inc-empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding: 48px 24px;
+  color: var(--muted); font-size: 14px;
+  text-align: center;
+}
+
+/* ── BE RECIPIENTS LIST ── */
+.be-recipients-list {
+  max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  margin-top: 10px;
+}
+
+/* ── FORM IMPORT EXTRAS ── */
+.import-credentials {
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 18px 20px; margin: 18px 0;
+}
+.import-credentials h3 {
+  font-family: var(--f-head); font-size: 13px; font-weight: 600;
+  color: var(--steel-2); margin-bottom: 12px;
+}
+
+.code-block-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--steel); border-radius: var(--r-lg) var(--r-lg) 0 0;
+  font-family: var(--f-mono); font-size: 11px; font-weight: 500;
+  color: #9FB4B9;
+}
+
+/* steps-grid for form import */
+.steps-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr));
+  gap: 14px; margin: 18px 0;
+}
+
+/* es-dot (connected banner) */
+.es-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green); flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--green-dim);
+}
