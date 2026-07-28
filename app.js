@@ -351,13 +351,13 @@ function setStyle(id, prop, val) {
 function startIncomingListener() {
   if (incomingUnsub) incomingUnsub();
 
-  // Light query: only unreviewed Google Form submissions
+  // No orderBy — avoids composite index requirement.
+  // Two equality where() clauses need no index.
   const q = query(
     colRef(),
     where("source", "==", "Google Form"),
     where("status", "==", "On Hold"),
-    orderBy("createdAt", "desc"),
-    limit(200)   // cap at 200 unreviewed — more than enough for real-time
+    limit(200)
   );
 
   incomingUnsub = onSnapshot(q, (snap) => {
@@ -387,15 +387,17 @@ window.renderIncoming = async function(preloaded) {
 
   let docs = preloaded;
   if (!docs) {
-    // Called directly (page nav) — do a fresh fetch
+    // Called directly (page nav) — single equality filter, no index needed.
     try {
       const snap = await getDocs(query(
         colRef(),
         where("source", "==", "Google Form"),
-        orderBy("createdAt", "desc"),
         limit(500)
       ));
-      docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sort client-side (small set — only Google Form submissions)
+      docs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     } catch(e) {
       wrap.innerHTML = `<p style="color:var(--muted);padding:24px">Load error: ${esc(e.message)}</p>`;
       return;
@@ -509,51 +511,58 @@ async function loadPageData() {
   try {
     const constraints = buildQueryConstraints();
 
-    // ── Order by ──────────────────────────────────
-    // When searching by name prefix we must order by nameLower.
-    // Otherwise order by createdAt.
-    let orderField = "createdAt";
-    let orderDir   = currentFilters.sort === "oldest" ? "asc" : "desc";
-    if (currentFilters.search) {
-      orderField = "nameLower";
-      orderDir   = "asc";
-    } else if (currentFilters.sort === "name") {
-      orderField = "nameLower";
-      orderDir   = "asc";
-    }
+    // ── Strategy ────────────────────────────────────────────────────
+    // Firestore composite indexes are NOT auto-created; combining
+    // where() + orderBy() on different fields requires a manual index.
+    // To avoid ALL index errors we use this rule:
+    //   • No where() filters → use orderBy("createdAt") for cursor pagination
+    //   • Any where() filter  → fetch with limit only, sort JS-side on the
+    //     PAGE_SIZE (≤100) result set. Cursor pagination disabled for filtered views.
+    const hasFilters = constraints.length > 0;
 
-    // ── Count query (no doc reads) ─────────────────
-    const countQ = query(colRef(), ...constraints);
+    // ── Count query (zero doc reads) ──────────────────────────────
+    const countQ    = query(colRef(), ...constraints);
     const countSnap = await getCountFromServer(countQ);
     totalFiltered   = countSnap.data().count;
 
-    // ── Page query ─────────────────────────────────
-    const pageConstraints = [
-      ...constraints,
-      orderBy(orderField, orderDir),
-      limit(PAGE_SIZE),
-    ];
-    if (lastVisible) pageConstraints.push(startAfter(lastVisible));
+    let docs;
+    if (!hasFilters) {
+      // ── Unfiltered: full cursor pagination with orderBy ──────────
+      const orderDir = currentFilters.sort === "oldest" ? "asc" : "desc";
+      const pageConstraints = [
+        orderBy("createdAt", orderDir),
+        limit(PAGE_SIZE),
+      ];
+      if (lastVisible) pageConstraints.push(startAfter(lastVisible));
+      const snap = await getDocs(query(colRef(), ...pageConstraints));
+      if (snap.docs.length > 0) lastVisible = snap.docs[snap.docs.length - 1];
+      docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } else {
+      // ── Filtered: simple where() only, sort client-side ──────────
+      // No orderBy → no composite index needed.
+      // Cursor pagination is reset on every filter change anyway.
+      const snap = await getDocs(query(colRef(), ...constraints, limit(PAGE_SIZE)));
+      docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    const pageQ    = query(colRef(), ...pageConstraints);
-    const pageSnap = await getDocs(pageQ);
-    const docs     = pageSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Client-side sort on the small page result
+      const sortV = currentFilters.sort;
+      if (sortV === "name" || currentFilters.search) {
+        docs.sort((a, b) => (a.nameLower || a.name || "").localeCompare(b.nameLower || b.name || ""));
+      } else if (sortV === "oldest") {
+        docs.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      } else {
+        docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      }
 
-    if (pageSnap.docs.length > 0) {
-      lastVisible = pageSnap.docs[pageSnap.docs.length - 1];
+      // Disable cursor-based next/prev when filters are active
+      // (we'd need a composite index for that — not worth the complexity)
+      lastVisible = null;
     }
 
     renderTable(docs);
   } catch(e) {
     console.warn("loadPageData:", e.message);
-    toast("Filter error: " + e.message, "err");
-    // Fallback: load without search if index missing
-    if (e.message.includes("index") || e.message.includes("requires")) {
-      toast("⚠️ Search index not ready yet — filtering without search", "");
-      currentFilters.search = "";
-      document.getElementById("srch").value = "";
-      loadPageData();
-    }
+    toast("Load error: " + e.message, "err");
   } finally {
     setLoadingState(false);
   }
