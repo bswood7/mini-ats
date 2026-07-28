@@ -131,12 +131,13 @@ onAuthStateChanged(auth, async (user) => {
   if (user) {
     document.getElementById("screen-auth").style.display = "none";
     document.getElementById("screen-app").style.display  = "flex";
-    document.getElementById("user-pill").textContent     = user.email;
 
-    // Personalise welcome messages
+    // Personalise welcome messages & avatar
     const firstName = (user.displayName || "Digvijay").split(" ")[0];
     document.getElementById("welcome-msg").textContent  = `Welcome, ${firstName} 👋`;
     document.getElementById("dash-welcome").textContent = `Welcome, ${firstName}! 👋`;
+    const avatarEl = document.getElementById("topbar-avatar");
+    if (avatarEl) avatarEl.textContent = firstName[0].toUpperCase();
 
     await loadCandidates();
     renderDashboard();
