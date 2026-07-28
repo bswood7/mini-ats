@@ -140,8 +140,9 @@ onAuthStateChanged(auth, async (user) => {
     const avatarEl = document.getElementById("topbar-avatar");
     if (avatarEl) avatarEl.textContent = firstName[0].toUpperCase();
 
+    loadCompanyFromCache();        // instant — show cached name while Firestore loads
     spawnParticles();
-    await loadCompanyProfile();   // load company name before rendering
+    await loadCompanyProfile();   // then sync from Firestore
     await loadCandidates();
     renderDashboard();
     startIncomingListener();
@@ -154,49 +155,67 @@ onAuthStateChanged(auth, async (user) => {
 
 // ═══════════════════════════════════════════════════════
 //  COMPANY PROFILE
+//  Stored directly on users/{uid} doc to avoid subcollection
+//  permission issues with default Firestore rules
 // ═══════════════════════════════════════════════════════
-function profileRef() {
-  return doc(db, `users/${currentUser.uid}/profile/settings`);
+function userDocRef() {
+  return doc(db, `users/${currentUser.uid}`);
 }
 
 async function loadCompanyProfile() {
   try {
-    const snap = await getDoc(profileRef());
-    const data = snap.exists() ? snap.data() : {};
-    setCompanyNameUI(data.companyName || "");
-    // Pre-fill the edit modal if it's open
+    const snap = await getDoc(userDocRef());
+    const name = snap.exists() ? (snap.data().companyName || "") : "";
+    setCompanyNameUI(name);
     const inp = document.getElementById("company-name-input");
-    if (inp) inp.value = data.companyName || "";
+    if (inp) inp.value = name;
   } catch(e) { console.warn("Profile load:", e.message); }
 }
 
 function setCompanyNameUI(name) {
-  const el = document.getElementById("topbar-company");
+  const el  = document.getElementById("topbar-company");
+  const div = document.getElementById("topbar-company-divider");
   if (!el) return;
   if (name) {
-    el.textContent = name;
-    el.style.display = "flex";
-    document.getElementById("topbar-company-divider").style.display = "flex";
+    el.textContent    = name;
+    el.style.display  = "inline-flex";
+    if (div) div.style.display = "flex";
   } else {
-    el.style.display = "none";
-    document.getElementById("topbar-company-divider").style.display = "none";
+    el.style.display  = "none";
+    if (div) div.style.display = "none";
   }
 }
 
 window.openCompanySettings = function() {
-  loadCompanyProfile();   // refresh fields
+  loadCompanyProfile();
   document.getElementById("modal-company").classList.add("open");
 };
 
 window.saveCompanyName = async function() {
   const name = document.getElementById("company-name-input").value.trim();
   try {
-    await setDoc(profileRef(), { companyName: name }, { merge: true });
+    // setDoc with merge:true on users/{uid} — always allowed by standard rules
+    await setDoc(userDocRef(), { companyName: name }, { merge: true });
     setCompanyNameUI(name);
-    toast(name ? `Company set: ${name} ✅` : "Company name cleared.", "ok");
+    toast(name ? `✅ "${name}" saved!` : "Company name cleared.", "ok");
     document.getElementById("modal-company").classList.remove("open");
-  } catch(e) { toast("Save failed: " + e.message, "err"); }
+  } catch(e) {
+    // Fallback: store in localStorage so it survives the session
+    if (name) localStorage.setItem("ats_company_" + currentUser.uid, name);
+    else       localStorage.removeItem("ats_company_" + currentUser.uid);
+    setCompanyNameUI(name);
+    toast(name ? `✅ "${name}" saved locally!` : "Cleared.", "ok");
+    document.getElementById("modal-company").classList.remove("open");
+    console.warn("Firestore profile write failed, used localStorage:", e.message);
+  }
 };
+
+// Load from localStorage as instant fallback while Firestore fetches
+function loadCompanyFromCache() {
+  if (!currentUser) return;
+  const cached = localStorage.getItem("ats_company_" + currentUser.uid);
+  if (cached) setCompanyNameUI(cached);
+}
 
 // ═══════════════════════════════════════════════════════
 //  FIRESTORE
