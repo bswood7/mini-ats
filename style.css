@@ -38,7 +38,7 @@
   --sh-lg: 0 20px 60px rgba(0,0,0,.16);
 }
 
-html, body { height: 100%; }
+html, body { height: 100%; overflow-x: hidden; }
 body {
   font-family: var(--f-body);
   background: var(--paper);
@@ -57,6 +57,8 @@ body {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* ── LEFT brand panel ── */
@@ -254,6 +256,9 @@ body {
   background: var(--paper-2);
   display: flex; align-items: center; justify-content: center;
   padding: 40px;
+  min-height: 100vh;
+  align-self: stretch;
+  overflow-y: auto;
 }
 .card-auth { width: 100%; max-width: 380px; }
 
