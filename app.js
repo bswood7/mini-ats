@@ -8,7 +8,7 @@ import { getAuth, createUserWithEmailAndPassword,
          signInWithEmailAndPassword, signOut,
          onAuthStateChanged, updateProfile }                from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs,
-         doc, updateDoc, deleteDoc,
+         doc, updateDoc, deleteDoc, setDoc, getDoc,
          query, orderBy, serverTimestamp, onSnapshot }      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ──────────────────────────────────────────────────────
@@ -141,15 +141,62 @@ onAuthStateChanged(auth, async (user) => {
     if (avatarEl) avatarEl.textContent = firstName[0].toUpperCase();
 
     spawnParticles();
+    await loadCompanyProfile();   // load company name before rendering
     await loadCandidates();
     renderDashboard();
-    startIncomingListener();   // live real-time listener for form submissions
+    startIncomingListener();
   } else {
     document.getElementById("screen-auth").style.display = "flex";
     document.getElementById("screen-app").style.display  = "none";
     if (incomingUnsub) { incomingUnsub(); incomingUnsub = null; }
   }
 });
+
+// ═══════════════════════════════════════════════════════
+//  COMPANY PROFILE
+// ═══════════════════════════════════════════════════════
+function profileRef() {
+  return doc(db, `users/${currentUser.uid}/profile/settings`);
+}
+
+async function loadCompanyProfile() {
+  try {
+    const snap = await getDoc(profileRef());
+    const data = snap.exists() ? snap.data() : {};
+    setCompanyNameUI(data.companyName || "");
+    // Pre-fill the edit modal if it's open
+    const inp = document.getElementById("company-name-input");
+    if (inp) inp.value = data.companyName || "";
+  } catch(e) { console.warn("Profile load:", e.message); }
+}
+
+function setCompanyNameUI(name) {
+  const el = document.getElementById("topbar-company");
+  if (!el) return;
+  if (name) {
+    el.textContent = name;
+    el.style.display = "flex";
+    document.getElementById("topbar-company-divider").style.display = "flex";
+  } else {
+    el.style.display = "none";
+    document.getElementById("topbar-company-divider").style.display = "none";
+  }
+}
+
+window.openCompanySettings = function() {
+  loadCompanyProfile();   // refresh fields
+  document.getElementById("modal-company").classList.add("open");
+};
+
+window.saveCompanyName = async function() {
+  const name = document.getElementById("company-name-input").value.trim();
+  try {
+    await setDoc(profileRef(), { companyName: name }, { merge: true });
+    setCompanyNameUI(name);
+    toast(name ? `Company set: ${name} ✅` : "Company name cleared.", "ok");
+    document.getElementById("modal-company").classList.remove("open");
+  } catch(e) { toast("Save failed: " + e.message, "err"); }
+};
 
 // ═══════════════════════════════════════════════════════
 //  FIRESTORE

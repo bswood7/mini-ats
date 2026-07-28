@@ -376,6 +376,24 @@ body {
   font-family: var(--f-mono); font-size: 11px; letter-spacing: .05em;
   color: rgba(159,180,185,.45); text-transform: uppercase;
 }
+.topbar-company {
+  font-family: var(--f-head);
+  font-size: 13px; font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: -.1px;
+  max-width: 320px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+  border: 1px solid rgba(79,224,214,.2);
+  background: rgba(79,224,214,.07);
+  padding: 3px 10px;
+  border-radius: 20px;
+  transition: background .14s, border-color .14s;
+}
+.topbar-company:hover {
+  background: rgba(79,224,214,.14);
+  border-color: rgba(79,224,214,.4);
+}
 .topbar-status-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--green); flex-shrink: 0;
