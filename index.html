@@ -133,6 +133,16 @@
     </div>
   </div>
 
+  <!-- ── 3D BACKGROUND CANVAS ── -->
+  <div class="bg-canvas" id="bg-canvas" aria-hidden="true">
+    <div class="bg-grid"></div>
+    <div class="bg-blob bg-blob-1"></div>
+    <div class="bg-blob bg-blob-2"></div>
+    <div class="bg-blob bg-blob-3"></div>
+    <div class="bg-scanline"></div>
+    <!-- particles injected by JS -->
+  </div>
+
   <!-- ── APP BODY ── -->
   <div class="app-body">
 
@@ -177,6 +187,11 @@
       <div class="nav-item" onclick="openEmailSettings()">
         <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
         Email Settings
+      </div>
+      <div class="nav-item" id="nav-formimport" onclick="showPage('formimport')">
+        <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        Form Import
+        <span class="nav-badge" style="background:rgba(79,224,214,.12);color:var(--cyan);font-size:9px">NEW</span>
       </div>
     </div>
 
@@ -390,6 +405,216 @@
           <p style="color:var(--muted)">No candidates added yet.</p>
         </div>
       </div><!-- /page-departments -->
+
+      <!-- ═══ PAGE: FORM IMPORT ═══ -->
+      <div class="page" id="page-formimport">
+
+        <!-- Hero Banner -->
+        <div class="import-hero">
+          <div class="import-hero-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4FE0D6" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          </div>
+          <div class="import-hero-text">
+            <h2>Google Form → TalentFlow Auto-Import</h2>
+            <p>Post a Google Form link on LinkedIn, Naukri, or any job portal. When candidates fill it, their details flow directly into TalentFlow — automatically, in real time.</p>
+          </div>
+          <div class="import-hero-actions">
+            <button class="btn btn-primary" onclick="copyScript()">📋 Copy Apps Script</button>
+          </div>
+        </div>
+
+        <!-- Steps -->
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div>
+              <h4>Create a Google Form</h4>
+              <p>Go to <strong>forms.google.com</strong> and create your job application form with candidate fields (name, email, phone, position, etc.).</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div>
+              <h4>Open Apps Script</h4>
+              <p>In the Form editor, click ⋮ → <strong>Script editor</strong>. Delete existing code and paste the script from Step 3.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div>
+              <h4>Paste &amp; Configure</h4>
+              <p>Copy the script below, paste it into Apps Script. Fill in your <strong>Firebase Project ID</strong> and <strong>Firestore API Key</strong> at the top.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <div>
+              <h4>Deploy as Web App</h4>
+              <p>Click <strong>Deploy → New deployment → Web app</strong>. Set "Execute as: Me" and "Who has access: Anyone". Copy the URL.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <div>
+              <h4>Add Form Trigger</h4>
+              <p>In Apps Script, go to <strong>Triggers (⏰)</strong> → Add trigger → <code>onFormSubmit</code> → On form submit. Save.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">6</div>
+            <div>
+              <h4>Share Your Form</h4>
+              <p>Post the Google Form link on <strong>LinkedIn, Naukri, Indeed</strong> or any portal. Every submission auto-creates a candidate here! 🎉</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Apps Script Code -->
+        <div class="code-block">
+          <div class="code-block-hdr">
+            <span>📄 Google Apps Script — paste into your Form's Script Editor</span>
+            <button class="copy-btn" id="copy-btn-script" onclick="copyScript()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy
+            </button>
+          </div>
+          <pre id="apps-script-code">// ════════════════════════════════════════════════════
+// TalentFlow ATS — Google Form Auto-Import Script
+// Paste this into your Google Form's Apps Script editor
+// ════════════════════════════════════════════════════
+
+// ── CONFIGURATION ── Fill these in ──────────────────
+var FIREBASE_PROJECT_ID = "ats-system-d83ef";   // Your Firebase project ID
+var FIREBASE_API_KEY    = "YOUR_FIREBASE_API_KEY"; // From Firebase Console → Project Settings
+var USER_UID            = "YOUR_USER_UID";         // Your Firebase Auth UID (see below)
+var DEFAULT_STATUS      = "On Hold";               // Status for new candidates
+var DEFAULT_DEPT        = "";                      // Optional default department
+// ────────────────────────────────────────────────────
+
+function onFormSubmit(e) {
+  var responses = e.response.getItemResponses();
+  var data = {};
+
+  // Map form question titles to field names
+  // Edit these to match YOUR form question titles exactly
+  var fieldMap = {
+    "Full Name"         : "name",
+    "Name"              : "name",
+    "Email Address"     : "email",
+    "Email"             : "email",
+    "Phone Number"      : "phone",
+    "Phone"             : "phone",
+    "Location"          : "location",
+    "City"              : "location",
+    "Position Applied"  : "position",
+    "Role"              : "position",
+    "Experience (Years)": "experience",
+    "Years of Experience":"experience",
+    "Department"        : "dept",
+    "Skills"            : "skills",
+    "Current CTC"       : "ctc",
+    "Expected CTC"      : "expectedCtc",
+    "LinkedIn URL"      : "linkedin",
+    "Cover Letter"      : "notes",
+    "Message"           : "notes"
+  };
+
+  responses.forEach(function(r) {
+    var question = r.getItem().getTitle();
+    var answer   = r.getResponse();
+    var field    = fieldMap[question];
+    if (field) data[field] = answer;
+    else data["extra_" + question.replace(/\s+/g,"_")] = answer;
+  });
+
+  // Add metadata
+  data.status    = data.status    || DEFAULT_STATUS;
+  data.dept      = data.dept      || DEFAULT_DEPT;
+  data.source    = "Google Form";
+  data.createdAt = new Date().toISOString();
+  data.round     = "Screening";
+
+  if (!data.name) {
+    Logger.log("Skipped: no name in response");
+    return;
+  }
+
+  // Write to Firestore via REST API
+  var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID
+          + "/databases/(default)/documents/users/" + USER_UID + "/candidates"
+          + "?key=" + FIREBASE_API_KEY;
+
+  var firestoreDoc = { fields: {} };
+  for (var key in data) {
+    if (data[key] !== undefined && data[key] !== "") {
+      firestoreDoc.fields[key] = { stringValue: String(data[key]) };
+    }
+  }
+  // createdAt as timestamp
+  firestoreDoc.fields.createdAt = { timestampValue: data.createdAt };
+
+  var options = {
+    method     : "post",
+    contentType: "application/json",
+    payload    : JSON.stringify(firestoreDoc),
+    muteHttpExceptions: true
+  };
+
+  var response = UrlFetchApp.fetch(url, options);
+  Logger.log("Firestore response: " + response.getContentText());
+}
+</pre>
+        </div>
+
+        <!-- How to find UID -->
+        <div class="webhook-section">
+          <h3>🔑 How to find your Firebase UID &amp; API Key</h3>
+          <p>You need two values to fill in the script above:</p>
+          <table class="field-map-table">
+            <thead><tr><th>Value</th><th>Where to find it</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="tag-cyan">FIREBASE_API_KEY</span></td>
+                <td>Firebase Console → Project Settings → General → Web API Key</td>
+                <td style="color:var(--muted);font-family:var(--f-mono);font-size:11px">AIzaSyB3Z4-HU5p...</td>
+              </tr>
+              <tr>
+                <td><span class="tag-cyan">USER_UID</span></td>
+                <td>Firebase Console → Authentication → Users → copy your UID</td>
+                <td style="color:var(--muted);font-family:var(--f-mono);font-size:11px">abc123xyz...</td>
+              </tr>
+              <tr>
+                <td><span class="tag-amber">FIREBASE_PROJECT_ID</span></td>
+                <td>Already filled in: <code>ats-system-d83ef</code></td>
+                <td style="color:var(--muted);font-family:var(--f-mono);font-size:11px">ats-system-d83ef</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Form Field Mapping -->
+        <div class="webhook-section">
+          <h3>📋 Recommended Google Form Questions</h3>
+          <p>Name your form questions <em>exactly</em> as shown below so the script maps them correctly. You can add/remove as needed.</p>
+          <table class="field-map-table">
+            <thead><tr><th>Form Question Title</th><th>Maps To</th><th>Required?</th></tr></thead>
+            <tbody>
+              <tr><td>Full Name</td><td><span class="tag-cyan">name</span></td><td>✅ Yes</td></tr>
+              <tr><td>Email Address</td><td><span class="tag-cyan">email</span></td><td>✅ Yes (for bulk email)</td></tr>
+              <tr><td>Phone Number</td><td><span class="tag-cyan">phone</span></td><td>Recommended</td></tr>
+              <tr><td>Location</td><td><span class="tag-cyan">location</span></td><td>Optional</td></tr>
+              <tr><td>Position Applied</td><td><span class="tag-cyan">position</span></td><td>Recommended</td></tr>
+              <tr><td>Department</td><td><span class="tag-cyan">dept</span></td><td>Optional</td></tr>
+              <tr><td>Experience (Years)</td><td><span class="tag-cyan">experience</span></td><td>Optional</td></tr>
+              <tr><td>Current CTC</td><td><span class="tag-cyan">ctc</span></td><td>Optional</td></tr>
+              <tr><td>Expected CTC</td><td><span class="tag-cyan">expectedCtc</span></td><td>Optional</td></tr>
+              <tr><td>Skills</td><td><span class="tag-cyan">skills</span></td><td>Optional</td></tr>
+              <tr><td>Cover Letter</td><td><span class="tag-cyan">notes</span></td><td>Optional</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /page-formimport -->
 
     </div><!-- /main-content -->
   </div><!-- /app-body -->

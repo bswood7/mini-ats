@@ -139,6 +139,7 @@ onAuthStateChanged(auth, async (user) => {
     const avatarEl = document.getElementById("topbar-avatar");
     if (avatarEl) avatarEl.textContent = firstName[0].toUpperCase();
 
+    spawnParticles();
     await loadCandidates();
     renderDashboard();
   } else {
@@ -794,3 +795,62 @@ window.sendBulkEmail = async function() {
   sendBtn.textContent = "Done";
   toast(`Sent ${sent} email${sent !== 1 ? "s" : ""}${failed ? ` (${failed} failed)` : ""} ✉️`, sent ? "ok" : "err");
 };
+
+// ═══════════════════════════════════════════════════════
+//  3D BACKGROUND PARTICLES
+// ═══════════════════════════════════════════════════════
+function spawnParticles() {
+  const canvas = document.getElementById("bg-canvas");
+  if (!canvas || canvas.dataset.spawned) return;
+  canvas.dataset.spawned = "1";
+  const colors = ["rgba(79,224,214,1)", "rgba(255,176,32,1)", "rgba(79,224,214,.6)"];
+  const sizes  = [3, 4, 5, 3, 6, 4];
+  for (let i = 0; i < 28; i++) {
+    const p = document.createElement("div");
+    p.className = "bg-particle";
+    const sz    = sizes[i % sizes.length];
+    const dur   = 10 + Math.random() * 14;
+    const delay = -(Math.random() * dur);
+    const left  = Math.random() * 100;
+    const top   = 20 + Math.random() * 70;
+    const col   = colors[i % colors.length];
+    p.style.cssText = `
+      --sz:${sz}px; --dur:${dur.toFixed(1)}s; --delay:${delay.toFixed(1)}s;
+      left:${left.toFixed(1)}%; top:${top.toFixed(1)}%;
+      background:${col};
+      box-shadow:0 0 ${sz * 2}px ${sz}px ${col.replace("1)", ".4)")};
+    `;
+    canvas.appendChild(p);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  FORM IMPORT — copy Apps Script to clipboard
+// ═══════════════════════════════════════════════════════
+window.copyScript = function() {
+  const el  = document.getElementById("apps-script-code");
+  const btn = document.getElementById("copy-btn-script");
+  if (!el) return;
+  const text = el.textContent || el.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      btn.classList.add("copied");
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Copied!`;
+      setTimeout(() => {
+        btn.classList.remove("copied");
+        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`;
+      }, 2200);
+    }
+    toast("Apps Script copied to clipboard! ✅", "ok");
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    toast("Apps Script copied! ✅", "ok");
+  });
+};
+
